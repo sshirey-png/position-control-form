@@ -1,0 +1,1384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Position Control Request Form | FirstLine Schools</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Open Sans', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        'fls-orange': '#e47727',
+                        'fls-orange-dark': '#c9621c',
+                        'fls-navy': '#002f60',
+                        'fls-blue': '#094aad',
+                        'fls-light-blue': '#e8f4f8',
+                    },
+                    animation: {
+                        'fade-in': 'fadeIn 0.2s ease-out',
+                        'slide-up': 'slideUp 0.3s ease-out',
+                    },
+                    keyframes: {
+                        fadeIn: {
+                            '0%': { opacity: '0' },
+                            '100%': { opacity: '1' },
+                        },
+                        slideUp: {
+                            '0%': { opacity: '0', transform: 'translateY(20px)' },
+                            '100%': { opacity: '1', transform: 'translateY(0)' },
+                        },
+                    },
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Open Sans', system-ui, -apple-system, sans-serif;
+        }
+
+        .status-pending { background-color: #fef3c7; color: #92400e; }
+        .status-approved { background-color: #dcfce7; color: #166534; }
+        .status-denied { background-color: #fee2e2; color: #991b1b; }
+        .status-withdrawn { background-color: #f3f4f6; color: #6b7280; }
+
+        .approval-approved { color: #16a34a; }
+        .approval-denied { color: #dc2626; }
+        .approval-pending { color: #9ca3af; }
+
+        .loader {
+            border: 3px solid #e2e8f0;
+            border-top: 3px solid #e47727;
+            border-radius: 50%;
+            width: 24px;
+            height: 24px;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .fade-in {
+            animation: fadeIn 0.2s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <header class="sticky top-0 z-50 bg-fls-navy border-b border-fls-navy">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <div class="flex items-center gap-4">
+                    <img src="https://firstlineschools.org/wp-content/uploads/2020/08/FLS-Logo_v2019_Color.png" alt="FirstLine Schools" class="h-10 bg-white rounded px-2 py-1">
+                    <div>
+                        <h1 class="text-lg font-semibold text-white">Position Control Request Form</h1>
+                        <p class="text-xs text-orange-200">Submit and track staffing requests</p>
+                    </div>
+                </div>
+                <div id="authSection" class="flex items-center gap-3">
+                    <a href="/login" id="loginBtn" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white hover:bg-fls-blue rounded-lg transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path>
+                        </svg>
+                        Admin Login
+                    </a>
+                    <div id="userInfo" class="hidden items-center gap-3">
+                        <span id="userName" class="text-sm text-white"></span>
+                        <a href="/logout" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white hover:bg-fls-blue rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                            </svg>
+                            Sign Out
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Staff View -->
+        <div id="staffView">
+            <!-- Hero Section -->
+            <section class="bg-white rounded-xl shadow-md p-8 mb-8">
+                <h1 class="text-3xl font-bold text-fls-navy mb-4 text-center">
+                    Position Control Request Form
+                </h1>
+                <p class="text-gray-600 text-center mb-4 max-w-2xl mx-auto">
+                    Submit staffing requests for new hires, stipends, role changes, and more.
+                    All requests require approval from the CEO, Finance, Talent, and HR before being finalized.
+                </p>
+            </section>
+
+            <!-- Request Form -->
+            <section class="bg-white rounded-xl shadow-md p-8 mb-8">
+                <h2 class="text-2xl font-bold text-fls-navy mb-6">Submit a Request</h2>
+
+                <!-- Success Message -->
+                <div id="successMessage" class="hidden bg-green-100 border border-green-400 text-green-700 px-6 py-4 rounded-lg mb-6 fade-in">
+                    <div class="flex items-center gap-3">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <div>
+                            <div class="font-semibold">Request Submitted Successfully!</div>
+                            <div>Your request ID is: <span id="successRequestId" class="font-mono font-bold"></span></div>
+                            <div class="text-sm mt-1">You'll receive a confirmation email shortly.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Error Message -->
+                <div id="errorMessage" class="hidden bg-red-100 border border-red-400 text-red-700 px-6 py-4 rounded-lg mb-6">
+                    <span id="errorText"></span>
+                </div>
+
+                <form id="requestForm" class="space-y-8">
+                    <!-- Section 1: Your Information -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Your Information</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
+                                <input type="text" name="requestor_name" id="requestorName" required
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Your Email *</label>
+                                <input type="email" name="requestor_email" id="requestorEmail" required
+                                    placeholder="youremail@firstlineschools.org"
+                                    onblur="autoFillFromEmail()"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <p class="text-xs text-gray-500 mt-1">Enter your email to auto-fill your info if you've submitted before</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 2: Request Details -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Request Details</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Type of Request *</label>
+                                <select name="request_type" id="requestType" required onchange="handleRequestTypeChange()"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Select request type...</option>
+                                    <option value="New Hire - Vacancy">New Hire - Vacancy</option>
+                                    <option value="New Hire - Replacement">New Hire - Replacement</option>
+                                    <option value="Additional Comp (Stipend)">Additional Comp (Stipend)</option>
+                                    <option value="Status Change">Status Change</option>
+                                    <option value="Title/Role Change">Title/Role Change</option>
+                                    <option value="Salary Adjustment">Salary Adjustment</option>
+                                    <option value="Temp Hire">Temp Hire</option>
+                                    <option value="Before/After School">Before/After School</option>
+                                    <option value="Supervisor Change">Supervisor Change</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">School Year *</label>
+                                <div class="flex gap-6 mt-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="school_year" value="25-26 SY" required
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span>25-26 SY</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="school_year" value="26-27 SY"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span>26-27 SY</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hours/Status *</label>
+                                <select name="hours_status" required
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Select hours/status...</option>
+                                    <option value="Full-Time (40 hrs)">Full-Time (40 hrs)</option>
+                                    <option value="Part-Time (29 hrs or less)">Part-Time (29 hrs or less)</option>
+                                    <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Position Title *</label>
+                                <select name="position_title" id="positionTitleSelect" required onchange="handlePositionTitleChange()"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Loading titles...</option>
+                                </select>
+                                <input type="text" id="positionTitleOther" name="position_title_other"
+                                    placeholder="Enter custom position title"
+                                    class="hidden w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange mt-2">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Reports To</label>
+                                <input type="text" name="reports_to" placeholder="Supervisor name or title"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Requested Amount</label>
+                                <input type="text" name="requested_amount" placeholder="Optional"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <p class="text-xs text-gray-500 mt-1">Talent will approve final amount</p>
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
+                                <input type="text" name="employee_name" placeholder="If already identified"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <p class="text-xs text-gray-500 mt-1">Leave blank if position is not yet filled</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Section 3: Justification & Details -->
+                    <div>
+                        <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Justification & Details</h3>
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Justification *</label>
+                                <textarea name="justification" required rows="4"
+                                    placeholder="Please provide a detailed justification for this request..."
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange"></textarea>
+                            </div>
+                            <div id="spedReviewSection" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Has this position been reviewed for SPED compliance?</label>
+                                <div class="flex gap-6">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="sped_reviewed" value="Yes"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span>Yes</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="sped_reviewed" value="No"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span>No</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
+                                <input type="text" name="duration" placeholder="e.g., January 2026 - May 2026"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            </div>
+                            <div id="paymentDatesSection" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Requested Payment Dates</label>
+                                <input type="text" name="payment_dates" placeholder="e.g., Monthly from Jan - May 2026"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            </div>
+                            <div>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="spedCheckbox" onchange="toggleSpedReview()"
+                                        class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                    <span class="text-sm text-gray-700">This request is related to Special Education (SPED)</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex justify-center">
+                        <button type="submit" id="submitBtn"
+                            class="bg-fls-orange hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold text-lg transition flex items-center gap-2">
+                            <span>Submit Request</span>
+                            <div id="submitLoader" class="loader hidden"></div>
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <!-- My Requests Section -->
+            <section class="bg-white rounded-xl shadow-md p-8">
+                <h2 class="text-2xl font-bold text-fls-navy mb-6">My Requests</h2>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Look up your requests by email</label>
+                    <div class="flex gap-2">
+                        <input type="email" id="lookupEmail" placeholder="youremail@firstlineschools.org"
+                            class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                        <button type="button" onclick="lookupRequests()"
+                            class="bg-fls-navy hover:bg-blue-900 text-white px-6 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                            <span>Look Up</span>
+                            <div id="lookupLoader" class="loader hidden"></div>
+                        </button>
+                    </div>
+                </div>
+
+                <div id="lookupResults" class="hidden">
+                    <!-- Summary Cards -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                        <div class="bg-fls-light-blue rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-fls-navy" id="totalRequests">0</div>
+                            <div class="text-sm text-gray-600">Total Requests</div>
+                        </div>
+                        <div class="bg-yellow-100 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-yellow-700" id="pendingCount">0</div>
+                            <div class="text-sm text-gray-600">Pending</div>
+                        </div>
+                        <div class="bg-green-100 rounded-lg p-4 text-center">
+                            <div class="text-2xl font-bold text-green-700" id="approvedCount">0</div>
+                            <div class="text-sm text-gray-600">Approved</div>
+                        </div>
+                    </div>
+
+                    <!-- Requests Table -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-sm">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">Type</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">Position</th>
+                                    <th class="px-4 py-3 text-left font-semibold text-gray-700">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody id="myRequestsTable">
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="noRequests" class="hidden text-center text-gray-500 py-8">
+                        No requests found for this email address.
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <!-- Admin View -->
+        <div id="adminView" class="hidden">
+            <!-- Admin Header -->
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
+                <div>
+                    <h1 class="text-3xl font-bold text-fls-navy">Position Control Admin</h1>
+                    <p class="text-gray-600">Manage and track all staffing requests</p>
+                </div>
+                <button onclick="showStaffView()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    View Staff Page
+                </button>
+            </div>
+
+            <!-- Stats Cards -->
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+                <div class="bg-white rounded-xl shadow p-4">
+                    <div class="text-3xl font-bold text-fls-navy" id="statTotal">0</div>
+                    <div class="text-sm text-gray-600">Total Requests</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4">
+                    <div class="text-3xl font-bold text-yellow-600" id="statPending">0</div>
+                    <div class="text-sm text-gray-600">Pending Review</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4">
+                    <div class="text-3xl font-bold text-green-600" id="statApproved">0</div>
+                    <div class="text-sm text-gray-600">Approved</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4">
+                    <div class="text-3xl font-bold text-red-600" id="statDenied">0</div>
+                    <div class="text-sm text-gray-600">Denied</div>
+                </div>
+                <div class="bg-white rounded-xl shadow p-4">
+                    <div class="text-3xl font-bold text-fls-orange" id="statAwaitingOffer">0</div>
+                    <div class="text-sm text-gray-600">Awaiting Offer</div>
+                </div>
+            </div>
+
+            <!-- Filters -->
+            <div class="bg-white rounded-xl shadow p-4 mb-6">
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <div class="flex-1">
+                        <input type="text" id="adminSearch" placeholder="Search by name, email, or position..."
+                            onkeyup="filterRequests()"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                    </div>
+                    <div>
+                        <select id="statusFilter" onchange="filterRequests()"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">All Statuses</option>
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Denied">Denied</option>
+                            <option value="Withdrawn">Withdrawn</option>
+                        </select>
+                    </div>
+                    <div>
+                        <select id="typeFilter" onchange="filterRequests()"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">All Types</option>
+                            <option value="New Hire - Vacancy">New Hire - Vacancy</option>
+                            <option value="New Hire - Replacement">New Hire - Replacement</option>
+                            <option value="Additional Comp (Stipend)">Additional Comp (Stipend)</option>
+                            <option value="Status Change">Status Change</option>
+                            <option value="Title/Role Change">Title/Role Change</option>
+                            <option value="Salary Adjustment">Salary Adjustment</option>
+                            <option value="Temp Hire">Temp Hire</option>
+                            <option value="Before/After School">Before/After School</option>
+                            <option value="Supervisor Change">Supervisor Change</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-2 cursor-pointer whitespace-nowrap px-2">
+                        <input type="checkbox" id="showArchived" onchange="filterRequests()"
+                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                        <span class="text-sm text-gray-700">Show Archived</span>
+                    </label>
+                    <button onclick="loadAdminData()" class="bg-fls-navy hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+                        </svg>
+                        Refresh
+                    </button>
+                </div>
+            </div>
+
+            <!-- Admin Requests Table -->
+            <div class="bg-white rounded-xl shadow overflow-hidden">
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onclick="sortTable('submitted_at')">Date</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Requestor</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Type</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Position</th>
+                                <th class="px-4 py-3 text-center font-semibold text-gray-700">Approvals</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700 cursor-pointer hover:bg-gray-200" onclick="sortTable('final_status')">Status</th>
+                                <th class="px-4 py-3 text-left font-semibold text-gray-700">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="adminRequestsTable">
+                        </tbody>
+                    </table>
+                </div>
+                <div id="adminLoading" class="text-center py-8 text-gray-500">
+                    <div class="loader mx-auto mb-2"></div>
+                    Loading requests...
+                </div>
+                <div id="adminNoData" class="hidden text-center py-8 text-gray-500">
+                    No requests found.
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 hidden items-center justify-center z-50">
+        <div class="bg-white rounded-xl shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] overflow-y-auto">
+            <div class="p-6 border-b flex justify-between items-center">
+                <h3 class="text-xl font-bold text-fls-navy">Edit Request</h3>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+            <div class="p-6">
+                <input type="hidden" id="editRequestId">
+
+                <!-- Request Info (Read-only) -->
+                <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                    <div>
+                        <span class="text-gray-500">Request ID:</span>
+                        <span id="modalRequestId" class="font-mono font-semibold"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Submitted:</span>
+                        <span id="modalSubmittedAt"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Requestor:</span>
+                        <span id="modalRequestor"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Email:</span>
+                        <span id="modalRequestorEmail"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Type:</span>
+                        <span id="modalType"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Hours:</span>
+                        <span id="modalHours"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Position:</span>
+                        <span id="modalPosition" class="font-semibold"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Reports To:</span>
+                        <span id="modalReportsTo"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">School Year:</span>
+                        <span id="modalSchoolYear"></span>
+                    </div>
+                    <div>
+                        <span class="text-gray-500">Employee:</span>
+                        <span id="modalEmployee"></span>
+                    </div>
+                    <div class="col-span-2">
+                        <span class="text-gray-500">Justification:</span>
+                        <p id="modalJustification" class="text-gray-700 mt-1 bg-gray-50 p-3 rounded-lg"></p>
+                    </div>
+                    <div id="modalAmountRow">
+                        <span class="text-gray-500">Requested Amount:</span>
+                        <span id="modalAmount"></span>
+                    </div>
+                    <div id="modalDurationRow">
+                        <span class="text-gray-500">Duration:</span>
+                        <span id="modalDuration"></span>
+                    </div>
+                </div>
+
+                <hr class="my-6">
+
+                <!-- Editable Fields: Approvals -->
+                <div class="space-y-4">
+                    <h4 class="text-md font-semibold text-fls-navy">Approvals</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">CEO Approval</label>
+                            <select id="editCeoApproval"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Denied">Denied</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Finance Approval</label>
+                            <select id="editFinanceApproval"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Denied">Denied</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Talent Approval</label>
+                            <select id="editTalentApproval"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Denied">Denied</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">HR Approval</label>
+                            <select id="editHrApproval"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <option value="Pending">Pending</option>
+                                <option value="Approved">Approved</option>
+                                <option value="Denied">Denied</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Final Status</label>
+                        <select id="editFinalStatus"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="Pending">Pending</option>
+                            <option value="Approved">Approved</option>
+                            <option value="Denied">Denied</option>
+                            <option value="Withdrawn">Withdrawn</option>
+                        </select>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Offer Sent</label>
+                            <input type="date" id="editOfferSent"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Offer Signed</label>
+                            <input type="date" id="editOfferSigned"
+                                class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Admin Notes</label>
+                        <textarea id="editAdminNotes" rows="3"
+                            class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange"></textarea>
+                    </div>
+
+                    <!-- Create Position Button -->
+                    <div id="createPositionSection" class="hidden">
+                        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <p class="text-sm text-green-800 mb-3">This request is approved. Create a new position in the Position Control table:</p>
+                            <button onclick="createPosition()" id="createPositionBtn"
+                                class="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium text-sm transition flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+                                </svg>
+                                <span>Create Position</span>
+                                <div id="createPositionLoader" class="loader hidden"></div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Position Link (when already created) -->
+                    <div id="positionLinkSection" class="hidden">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <p class="text-sm text-blue-800">
+                                Position created: <span id="positionIdLink" class="font-mono font-semibold"></span>
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status History -->
+                <div class="mt-6 text-sm text-gray-500">
+                    <span class="font-medium">Last Updated:</span>
+                    <span id="modalLastUpdated"></span>
+                    by <span id="modalUpdatedBy"></span>
+                </div>
+            </div>
+            <div class="p-6 border-t bg-gray-50 flex justify-between">
+                <div class="flex gap-2">
+                    <button onclick="toggleArchiveRequest()" id="archiveBtn"
+                        class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium text-sm transition">
+                        Archive
+                    </button>
+                    <button onclick="deleteRequest()" id="deleteBtn"
+                        class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium text-sm transition">
+                        Delete
+                    </button>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="closeModal()" class="px-4 py-2 border rounded-lg hover:bg-gray-100 transition">
+                        Cancel
+                    </button>
+                    <button onclick="saveRequest()" id="saveBtn"
+                        class="bg-fls-orange hover:bg-orange-600 text-white px-6 py-2 rounded-lg font-medium transition flex items-center gap-2">
+                        <span>Save Changes</span>
+                        <div id="saveLoader" class="loader hidden"></div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="bg-fls-navy text-white py-6 mt-12">
+        <div class="max-w-7xl mx-auto px-4 text-center text-sm opacity-80">
+            <p>FirstLine Schools Position Control Request Form</p>
+            <p class="mt-1">Questions? Contact <a href="mailto:talent@firstlineschools.org" class="underline">talent@firstlineschools.org</a></p>
+        </div>
+    </footer>
+
+    <script>
+        // Global state
+        let allRequests = [];
+        let currentSort = { field: 'submitted_at', direction: 'desc' };
+        let isAdmin = false;
+        let userPermissions = null;
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            await checkAuthStatus();
+            await loadJobTitles();
+
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('admin') === 'true' && isAdmin) {
+                showAdminView();
+            }
+        });
+
+        // Load job titles from position_control table
+        async function loadJobTitles() {
+            try {
+                const response = await fetch('/api/job-titles');
+                const data = await response.json();
+                const select = document.getElementById('positionTitleSelect');
+                select.innerHTML = '<option value="">Select position title...</option>';
+
+                data.titles.forEach(title => {
+                    const option = document.createElement('option');
+                    option.value = title;
+                    option.textContent = title;
+                    select.appendChild(option);
+                });
+
+                // Add "Other" option at the end
+                const otherOption = document.createElement('option');
+                otherOption.value = '__other__';
+                otherOption.textContent = 'Other (specify below)';
+                select.appendChild(otherOption);
+            } catch (error) {
+                console.error('Failed to load job titles:', error);
+                const select = document.getElementById('positionTitleSelect');
+                select.innerHTML = '<option value="">Select position title...</option><option value="__other__">Other (specify below)</option>';
+            }
+        }
+
+        function handlePositionTitleChange() {
+            const select = document.getElementById('positionTitleSelect');
+            const otherInput = document.getElementById('positionTitleOther');
+
+            if (select.value === '__other__') {
+                otherInput.classList.remove('hidden');
+                otherInput.required = true;
+                otherInput.focus();
+            } else {
+                otherInput.classList.add('hidden');
+                otherInput.required = false;
+                otherInput.value = '';
+            }
+        }
+
+        // Auth functions
+        async function checkAuthStatus() {
+            try {
+                const response = await fetch('/api/auth/status');
+                const data = await response.json();
+
+                if (data.authenticated) {
+                    document.getElementById('loginBtn').classList.add('hidden');
+                    document.getElementById('userInfo').classList.remove('hidden');
+                    document.getElementById('userInfo').classList.add('flex');
+                    document.getElementById('userName').textContent = data.user.name || data.user.email;
+                    isAdmin = data.is_admin;
+                    userPermissions = data.permissions;
+                } else {
+                    document.getElementById('loginBtn').classList.remove('hidden');
+                    document.getElementById('userInfo').classList.add('hidden');
+                    isAdmin = false;
+                    userPermissions = null;
+                }
+            } catch (error) {
+                console.error('Auth check failed:', error);
+            }
+        }
+
+        // View switching
+        function showAdminView() {
+            if (!isAdmin) {
+                alert('Admin access required');
+                return;
+            }
+            document.getElementById('staffView').classList.add('hidden');
+            document.getElementById('adminView').classList.remove('hidden');
+            loadAdminData();
+        }
+
+        function showStaffView() {
+            document.getElementById('adminView').classList.add('hidden');
+            document.getElementById('staffView').classList.remove('hidden');
+        }
+
+        // Auto-fill staff info from previous submissions
+        async function autoFillFromEmail() {
+            const email = document.getElementById('requestorEmail').value.trim();
+            if (!email) return;
+
+            const nameField = document.getElementById('requestorName');
+            if (nameField.value.trim()) return;
+
+            try {
+                const response = await fetch(`/api/staff/lookup?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                if (data.found) {
+                    nameField.value = data.name;
+                }
+            } catch (error) {
+                console.error('Auto-fill failed:', error);
+            }
+        }
+
+        // Conditional form fields
+        function handleRequestTypeChange() {
+            const requestType = document.getElementById('requestType').value;
+            const paymentSection = document.getElementById('paymentDatesSection');
+
+            if (requestType === 'Additional Comp (Stipend)') {
+                paymentSection.classList.remove('hidden');
+            } else {
+                paymentSection.classList.add('hidden');
+            }
+        }
+
+        function toggleSpedReview() {
+            const checkbox = document.getElementById('spedCheckbox');
+            const section = document.getElementById('spedReviewSection');
+
+            if (checkbox.checked) {
+                section.classList.remove('hidden');
+            } else {
+                section.classList.add('hidden');
+            }
+        }
+
+        // Submit request form
+        document.getElementById('requestForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const form = e.target;
+            const submitBtn = document.getElementById('submitBtn');
+            const loader = document.getElementById('submitLoader');
+
+            submitBtn.disabled = true;
+            loader.classList.remove('hidden');
+
+            document.getElementById('successMessage').classList.add('hidden');
+            document.getElementById('errorMessage').classList.add('hidden');
+
+            const formData = new FormData(form);
+            const data = {};
+            formData.forEach((value, key) => {
+                data[key] = value;
+            });
+
+            // Default sped_reviewed if not shown
+            if (!data.sped_reviewed) {
+                data.sped_reviewed = 'N/A';
+            }
+
+            // Handle "Other" position title
+            if (data.position_title === '__other__') {
+                data.position_title = data.position_title_other || '';
+            }
+            delete data.position_title_other;
+
+            try {
+                const response = await fetch('/api/requests', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    document.getElementById('successRequestId').textContent = result.request_id;
+                    document.getElementById('successMessage').classList.remove('hidden');
+                    form.reset();
+                    // Reset conditional sections
+                    document.getElementById('paymentDatesSection').classList.add('hidden');
+                    document.getElementById('spedReviewSection').classList.add('hidden');
+                    document.getElementById('spedCheckbox').checked = false;
+                    document.getElementById('positionTitleOther').classList.add('hidden');
+                    document.getElementById('positionTitleOther').required = false;
+                    window.scrollTo({ top: document.getElementById('successMessage').offsetTop - 100, behavior: 'smooth' });
+                } else {
+                    document.getElementById('errorText').textContent = result.error || 'Failed to submit request';
+                    document.getElementById('errorMessage').classList.remove('hidden');
+                }
+            } catch (error) {
+                document.getElementById('errorText').textContent = 'Network error. Please try again.';
+                document.getElementById('errorMessage').classList.remove('hidden');
+            } finally {
+                submitBtn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        });
+
+        // Lookup user requests
+        async function lookupRequests() {
+            const email = document.getElementById('lookupEmail').value.trim();
+            if (!email) return;
+
+            const loader = document.getElementById('lookupLoader');
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`/api/requests/lookup?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                document.getElementById('lookupResults').classList.remove('hidden');
+                document.getElementById('totalRequests').textContent = data.total;
+                document.getElementById('pendingCount').textContent = data.pending;
+                document.getElementById('approvedCount').textContent = data.approved;
+
+                const tbody = document.getElementById('myRequestsTable');
+                tbody.innerHTML = '';
+
+                if (data.requests.length === 0) {
+                    document.getElementById('noRequests').classList.remove('hidden');
+                    tbody.parentElement.classList.add('hidden');
+                } else {
+                    document.getElementById('noRequests').classList.add('hidden');
+                    tbody.parentElement.classList.remove('hidden');
+
+                    data.requests.forEach(req => {
+                        const date = req.submitted_at ? new Date(req.submitted_at).toLocaleDateString() : '-';
+                        const statusClass = getStatusClass(req.final_status);
+
+                        tbody.innerHTML += `
+                            <tr class="border-b hover:bg-gray-50">
+                                <td class="px-4 py-3">${date}</td>
+                                <td class="px-4 py-3">${escapeHtml(req.request_type)}</td>
+                                <td class="px-4 py-3">${escapeHtml(req.position_title)}</td>
+                                <td class="px-4 py-3">
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${escapeHtml(req.final_status)}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            } catch (error) {
+                console.error('Lookup failed:', error);
+            } finally {
+                loader.classList.add('hidden');
+            }
+        }
+
+        // Admin functions
+        async function loadAdminData() {
+            document.getElementById('adminLoading').classList.remove('hidden');
+            document.getElementById('adminNoData').classList.add('hidden');
+
+            try {
+                const [statsRes, requestsRes] = await Promise.all([
+                    fetch('/api/admin/stats'),
+                    fetch('/api/admin/requests')
+                ]);
+
+                const stats = await statsRes.json();
+                const requestsData = await requestsRes.json();
+
+                // Update stats
+                document.getElementById('statTotal').textContent = stats.total;
+                document.getElementById('statPending').textContent = stats.pending;
+                document.getElementById('statApproved').textContent = stats.approved;
+                document.getElementById('statDenied').textContent = stats.denied;
+                document.getElementById('statAwaitingOffer').textContent = stats.awaiting_offer;
+
+                allRequests = requestsData.requests;
+                filterRequests();
+            } catch (error) {
+                console.error('Failed to load admin data:', error);
+            } finally {
+                document.getElementById('adminLoading').classList.add('hidden');
+            }
+        }
+
+        function filterRequests() {
+            const searchTerm = document.getElementById('adminSearch').value.toLowerCase();
+            const statusFilter = document.getElementById('statusFilter').value;
+            const typeFilter = document.getElementById('typeFilter').value;
+            const showArchived = document.getElementById('showArchived').checked;
+
+            let filtered = allRequests.filter(req => {
+                const matchesSearch = !searchTerm ||
+                    req.requestor_name?.toLowerCase().includes(searchTerm) ||
+                    req.requestor_email?.toLowerCase().includes(searchTerm) ||
+                    req.position_title?.toLowerCase().includes(searchTerm) ||
+                    req.employee_name?.toLowerCase().includes(searchTerm);
+
+                const matchesStatus = !statusFilter || req.final_status === statusFilter;
+                const matchesType = !typeFilter || req.request_type === typeFilter;
+                const matchesArchived = showArchived || !req.is_archived;
+
+                return matchesSearch && matchesStatus && matchesType && matchesArchived;
+            });
+
+            // Sort
+            filtered.sort((a, b) => {
+                let aVal = a[currentSort.field] || '';
+                let bVal = b[currentSort.field] || '';
+
+                if (currentSort.field === 'submitted_at') {
+                    aVal = new Date(aVal) || new Date(0);
+                    bVal = new Date(bVal) || new Date(0);
+                }
+
+                if (aVal < bVal) return currentSort.direction === 'asc' ? -1 : 1;
+                if (aVal > bVal) return currentSort.direction === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            renderAdminTable(filtered);
+        }
+
+        function sortTable(field) {
+            if (currentSort.field === field) {
+                currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+            } else {
+                currentSort.field = field;
+                currentSort.direction = 'desc';
+            }
+            filterRequests();
+        }
+
+        function getApprovalIcon(status) {
+            if (status === 'Approved') return '<span class="approval-approved" title="Approved">&#10003;</span>';
+            if (status === 'Denied') return '<span class="approval-denied" title="Denied">&#10007;</span>';
+            return '<span class="approval-pending" title="Pending">&#9711;</span>';
+        }
+
+        function renderAdminTable(requests) {
+            const tbody = document.getElementById('adminRequestsTable');
+            tbody.innerHTML = '';
+
+            if (requests.length === 0) {
+                document.getElementById('adminNoData').classList.remove('hidden');
+                return;
+            }
+
+            document.getElementById('adminNoData').classList.add('hidden');
+
+            requests.forEach(req => {
+                const date = req.submitted_at ? new Date(req.submitted_at).toLocaleDateString() : '-';
+                const statusClass = getStatusClass(req.final_status);
+                const archivedClass = req.is_archived ? 'opacity-50' : '';
+                const archivedBadge = req.is_archived ? ' <span class="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-500 text-xs rounded">Archived</span>' : '';
+
+                const approvals = `
+                    <span class="inline-flex items-center gap-1 text-sm" title="CEO / Finance / Talent / HR">
+                        <span class="font-medium text-xs text-gray-400">C</span>${getApprovalIcon(req.ceo_approval)}
+                        <span class="font-medium text-xs text-gray-400 ml-1">F</span>${getApprovalIcon(req.finance_approval)}
+                        <span class="font-medium text-xs text-gray-400 ml-1">T</span>${getApprovalIcon(req.talent_approval)}
+                        <span class="font-medium text-xs text-gray-400 ml-1">H</span>${getApprovalIcon(req.hr_approval)}
+                    </span>
+                `;
+
+                tbody.innerHTML += `
+                    <tr class="border-b hover:bg-gray-50 ${archivedClass}">
+                        <td class="px-4 py-3 text-sm">${date}</td>
+                        <td class="px-4 py-3">
+                            <div class="font-medium">${escapeHtml(req.requestor_name)}${archivedBadge}</div>
+                            <div class="text-xs text-gray-500">${escapeHtml(req.requestor_email)}</div>
+                        </td>
+                        <td class="px-4 py-3 text-sm">${escapeHtml(req.request_type)}</td>
+                        <td class="px-4 py-3 text-sm">${escapeHtml(req.position_title)}</td>
+                        <td class="px-4 py-3 text-center">${approvals}</td>
+                        <td class="px-4 py-3">
+                            <span class="px-2 py-1 rounded-full text-xs font-medium ${statusClass}">${escapeHtml(req.final_status)}</span>
+                        </td>
+                        <td class="px-4 py-3">
+                            <button onclick="openEditModal('${req.request_id}')"
+                                class="text-fls-navy hover:text-blue-700 font-medium text-sm">
+                                Edit
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // Modal functions
+        function openEditModal(requestId) {
+            const req = allRequests.find(r => r.request_id === requestId);
+            if (!req) return;
+
+            document.getElementById('editRequestId').value = requestId;
+            document.getElementById('modalRequestId').textContent = requestId;
+            document.getElementById('modalSubmittedAt').textContent = req.submitted_at ? new Date(req.submitted_at).toLocaleString() : '-';
+            document.getElementById('modalRequestor').textContent = req.requestor_name;
+            document.getElementById('modalRequestorEmail').textContent = req.requestor_email;
+            document.getElementById('modalType').textContent = req.request_type;
+            document.getElementById('modalHours').textContent = req.hours_status;
+            document.getElementById('modalPosition').textContent = req.position_title;
+            document.getElementById('modalReportsTo').textContent = req.reports_to || '-';
+            document.getElementById('modalSchoolYear').textContent = req.school_year || '-';
+            document.getElementById('modalEmployee').textContent = req.employee_name || '-';
+            document.getElementById('modalJustification').textContent = req.justification || '-';
+            document.getElementById('modalAmount').textContent = req.requested_amount || '-';
+            document.getElementById('modalDuration').textContent = req.duration || '-';
+            document.getElementById('modalLastUpdated').textContent = req.updated_at ? new Date(req.updated_at).toLocaleString() : '-';
+            document.getElementById('modalUpdatedBy').textContent = req.updated_by || '-';
+
+            // Editable fields
+            document.getElementById('editCeoApproval').value = req.ceo_approval || 'Pending';
+            document.getElementById('editFinanceApproval').value = req.finance_approval || 'Pending';
+            document.getElementById('editTalentApproval').value = req.talent_approval || 'Pending';
+            document.getElementById('editHrApproval').value = req.hr_approval || 'Pending';
+            document.getElementById('editFinalStatus').value = req.final_status || 'Pending';
+            document.getElementById('editOfferSent').value = req.offer_sent || '';
+            document.getElementById('editOfferSigned').value = req.offer_signed || '';
+            document.getElementById('editAdminNotes').value = req.admin_notes || '';
+
+            // Apply role-based permissions to form fields
+            const p = userPermissions || {};
+            const canApprove = p.can_approve || [];
+
+            // Approval dropdowns — disable if user can't edit that field
+            const approvalMap = {
+                'editCeoApproval': 'ceo_approval',
+                'editFinanceApproval': 'finance_approval',
+                'editTalentApproval': 'talent_approval',
+                'editHrApproval': 'hr_approval',
+            };
+            for (const [elemId, field] of Object.entries(approvalMap)) {
+                const el = document.getElementById(elemId);
+                const allowed = canApprove.includes(field);
+                el.disabled = !allowed;
+                el.classList.toggle('opacity-50', !allowed);
+                el.classList.toggle('cursor-not-allowed', !allowed);
+                el.onchange = allowed ? autoCalculateFinalStatus : null;
+            }
+
+            // Final status
+            const finalEl = document.getElementById('editFinalStatus');
+            finalEl.disabled = !p.can_edit_final;
+            finalEl.classList.toggle('opacity-50', !p.can_edit_final);
+            finalEl.classList.toggle('cursor-not-allowed', !p.can_edit_final);
+
+            // Offer dates
+            const offerSentEl = document.getElementById('editOfferSent');
+            const offerSignedEl = document.getElementById('editOfferSigned');
+            offerSentEl.disabled = !p.can_edit_dates;
+            offerSignedEl.disabled = !p.can_edit_dates;
+            offerSentEl.classList.toggle('opacity-50', !p.can_edit_dates);
+            offerSignedEl.classList.toggle('opacity-50', !p.can_edit_dates);
+            offerSentEl.classList.toggle('cursor-not-allowed', !p.can_edit_dates);
+            offerSignedEl.classList.toggle('cursor-not-allowed', !p.can_edit_dates);
+
+            // Admin notes — viewers can't edit
+            const notesEl = document.getElementById('editAdminNotes');
+            notesEl.disabled = !p.can_edit_notes;
+            notesEl.classList.toggle('opacity-50', !p.can_edit_notes);
+            notesEl.classList.toggle('cursor-not-allowed', !p.can_edit_notes);
+
+            // Delete button — super admin only
+            document.getElementById('deleteBtn').classList.toggle('hidden', !p.can_delete);
+
+            // Archive button — hidden for viewers
+            document.getElementById('archiveBtn').classList.toggle('hidden', !p.can_archive);
+
+            // Save button — hidden for viewers (nothing to save)
+            document.getElementById('saveBtn').classList.toggle('hidden', !!p.is_viewer);
+
+            // Show/hide create position button
+            const createSection = document.getElementById('createPositionSection');
+            const linkSection = document.getElementById('positionLinkSection');
+
+            if (req.position_id) {
+                createSection.classList.add('hidden');
+                linkSection.classList.remove('hidden');
+                document.getElementById('positionIdLink').textContent = req.position_id;
+            } else if (req.final_status === 'Approved' && p.can_create_position) {
+                createSection.classList.remove('hidden');
+                linkSection.classList.add('hidden');
+            } else {
+                createSection.classList.add('hidden');
+                linkSection.classList.add('hidden');
+            }
+
+            // Archive button
+            const archiveBtn = document.getElementById('archiveBtn');
+            if (req.is_archived) {
+                archiveBtn.textContent = 'Unarchive';
+                archiveBtn.className = 'px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-medium text-sm transition';
+            } else {
+                archiveBtn.textContent = 'Archive';
+                archiveBtn.className = 'px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium text-sm transition';
+            }
+
+            document.getElementById('editModal').classList.remove('hidden');
+            document.getElementById('editModal').classList.add('flex');
+        }
+
+        function autoCalculateFinalStatus() {
+            const ceo = document.getElementById('editCeoApproval').value;
+            const finance = document.getElementById('editFinanceApproval').value;
+            const talent = document.getElementById('editTalentApproval').value;
+            const hr = document.getElementById('editHrApproval').value;
+
+            if (ceo === 'Approved' && finance === 'Approved' && talent === 'Approved' && hr === 'Approved') {
+                document.getElementById('editFinalStatus').value = 'Approved';
+            } else if (ceo === 'Denied' || finance === 'Denied' || talent === 'Denied' || hr === 'Denied') {
+                document.getElementById('editFinalStatus').value = 'Denied';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').classList.add('hidden');
+            document.getElementById('editModal').classList.remove('flex');
+        }
+
+        async function saveRequest() {
+            const requestId = document.getElementById('editRequestId').value;
+            const saveBtn = document.getElementById('saveBtn');
+            const loader = document.getElementById('saveLoader');
+
+            saveBtn.disabled = true;
+            loader.classList.remove('hidden');
+
+            // Only send fields the user has permission to edit
+            const p = userPermissions || {};
+            const canApprove = p.can_approve || [];
+            const updates = {};
+
+            // Approval fields — only include those the user can edit
+            if (canApprove.includes('ceo_approval')) updates.ceo_approval = document.getElementById('editCeoApproval').value;
+            if (canApprove.includes('finance_approval')) updates.finance_approval = document.getElementById('editFinanceApproval').value;
+            if (canApprove.includes('talent_approval')) updates.talent_approval = document.getElementById('editTalentApproval').value;
+            if (canApprove.includes('hr_approval')) updates.hr_approval = document.getElementById('editHrApproval').value;
+
+            if (p.can_edit_final) updates.final_status = document.getElementById('editFinalStatus').value;
+            if (p.can_edit_dates) {
+                updates.offer_sent = document.getElementById('editOfferSent').value;
+                updates.offer_signed = document.getElementById('editOfferSigned').value;
+            }
+
+            // All admins can edit notes
+            updates.admin_notes = document.getElementById('editAdminNotes').value;
+
+            try {
+                const response = await fetch(`/api/admin/requests/${requestId}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(updates)
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadAdminData();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to save changes');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            } finally {
+                saveBtn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function createPosition() {
+            const requestId = document.getElementById('editRequestId').value;
+            const btn = document.getElementById('createPositionBtn');
+            const loader = document.getElementById('createPositionLoader');
+
+            if (!confirm('Create a new position in the Position Control table for this approved request?')) return;
+
+            btn.disabled = true;
+            loader.classList.remove('hidden');
+
+            try {
+                const response = await fetch(`/api/admin/requests/${requestId}/create-position`, {
+                    method: 'POST'
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    alert(`Position created successfully!\nPosition ID: ${result.position_id}`);
+                    closeModal();
+                    loadAdminData();
+                } else {
+                    alert(result.error || 'Failed to create position');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            } finally {
+                btn.disabled = false;
+                loader.classList.add('hidden');
+            }
+        }
+
+        async function toggleArchiveRequest() {
+            const requestId = document.getElementById('editRequestId').value;
+            const req = allRequests.find(r => r.request_id === requestId);
+            if (!req) return;
+
+            const action = req.is_archived ? 'unarchive' : 'archive';
+            if (!confirm(`Are you sure you want to ${action} this request?`)) return;
+
+            try {
+                const response = await fetch(`/api/admin/requests/${requestId}/${action}`, {
+                    method: 'PATCH'
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadAdminData();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || `Failed to ${action} request`);
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        async function deleteRequest() {
+            const requestId = document.getElementById('editRequestId').value;
+            if (!confirm('Are you sure you want to PERMANENTLY DELETE this request? This cannot be undone.')) return;
+            if (!confirm('This is irreversible. Delete this request?')) return;
+
+            try {
+                const response = await fetch(`/api/admin/requests/${requestId}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    closeModal();
+                    loadAdminData();
+                } else {
+                    const error = await response.json();
+                    alert(error.error || 'Failed to delete request');
+                }
+            } catch (error) {
+                alert('Network error. Please try again.');
+            }
+        }
+
+        // Utility functions
+        function getStatusClass(status) {
+            const classes = {
+                'Pending': 'status-pending',
+                'Approved': 'status-approved',
+                'Denied': 'status-denied',
+                'Withdrawn': 'status-withdrawn',
+            };
+            return classes[status] || 'bg-gray-100 text-gray-700';
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Close modal on escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('editModal').addEventListener('click', (e) => {
+            if (e.target === document.getElementById('editModal')) {
+                closeModal();
+            }
+        });
+    </script>
+</body>
+</html>
