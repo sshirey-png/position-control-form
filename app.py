@@ -557,10 +557,16 @@ def submit_request():
 
         # Validate required fields
         required_fields = ['requestor_name', 'requestor_email', 'request_type',
-                          'position_title', 'justification', 'school_year']
+                          'justification', 'school_year']
 
-        # hours_status is required for all types except stipends
-        if data.get('request_type') != 'Additional Comp (Stipend)':
+        # Open Position: title/hours come from employee lookup, employee_email is required
+        if data.get('request_type') == 'Open Position':
+            required_fields.append('employee_email')
+        else:
+            required_fields.append('position_title')
+
+        # hours_status is required for all types except stipends and Open Position
+        if data.get('request_type') not in ('Additional Comp (Stipend)', 'Open Position'):
             required_fields.append('hours_status')
 
         for field in required_fields:
@@ -685,7 +691,7 @@ def lookup_employee():
         pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
         query = f"""
         SELECT position_id, school, job_category, job_title, first_name, last_name,
-               email_address, current_status, employee_number
+               email_address, current_status, employee_number, hours_status
         FROM `{pc_table}`
         WHERE LOWER(TRIM(email_address)) = LOWER(TRIM(@email))
           AND current_status IN ('Active', 'Filled')
@@ -711,6 +717,7 @@ def lookup_employee():
                 'last_name': last,
                 'employee_name': f"{first} {last}".strip(),
                 'current_status': row.current_status or '',
+                'hours_status': getattr(row, 'hours_status', '') or '',
             })
 
         return jsonify({'found': False})

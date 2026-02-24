@@ -232,6 +232,9 @@
                                     <option value="Part-Time (29 hrs or less)">Part-Time (29 hrs or less)</option>
                                     <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
                                 </select>
+                                <input type="text" id="hoursStatusReadonly" readonly
+                                    placeholder="Auto-filled from employee lookup"
+                                    class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Position Title *</label>
@@ -242,6 +245,9 @@
                                 <input type="text" id="positionTitleOther" name="position_title_other"
                                     placeholder="Enter custom position title"
                                     class="hidden w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange mt-2">
+                                <input type="text" id="positionTitleReadonly" readonly
+                                    placeholder="Auto-filled from employee lookup"
+                                    class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
                             <div id="employeeEmailSection">
                                 <label id="employeeEmailLabel" class="block text-sm font-medium text-gray-700 mb-1">Employee Email</label>
@@ -918,14 +924,17 @@
                     document.getElementById('schoolField').value = data.school || '';
                     document.getElementById('linkedPositionId').value = data.position_id || '';
 
-                    // Auto-select position title in dropdown if it matches
+                    // Auto-fill read-only fields (used for Open Position)
+                    document.getElementById('positionTitleReadonly').value = data.job_title || '';
+                    document.getElementById('hoursStatusReadonly').value = data.hours_status || '';
+
+                    // Also set the dropdown value for non-Open Position types
                     const titleSelect = document.getElementById('positionTitleSelect');
                     const matchOption = Array.from(titleSelect.options).find(
                         o => o.value.toLowerCase() === (data.job_title || '').toLowerCase()
                     );
                     if (matchOption) {
                         titleSelect.value = matchOption.value;
-                        // Hide "other" input if it was showing
                         document.getElementById('positionTitleOther').classList.add('hidden');
                         document.getElementById('positionTitleOther').required = false;
                     }
@@ -956,14 +965,47 @@
                 document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // Hours/Status: hide for stipends
-            if (requestType === 'Additional Comp (Stipend)') {
+            // Hours/Status & Position Title: swap to read-only for Open Position
+            const hoursReadonly = document.getElementById('hoursStatusReadonly');
+            const titleSelect = document.getElementById('positionTitleSelect');
+            const titleReadonly = document.getElementById('positionTitleReadonly');
+            const titleOther = document.getElementById('positionTitleOther');
+
+            if (requestType === 'Open Position') {
+                // Hours: hide dropdown, show read-only
+                hoursSelect.classList.add('hidden');
+                hoursSelect.required = false;
+                hoursSelect.value = '';
+                hoursReadonly.classList.remove('hidden');
+                hoursSection.classList.remove('hidden');
+                // Title: hide dropdown, show read-only
+                titleSelect.classList.add('hidden');
+                titleSelect.required = false;
+                titleReadonly.classList.remove('hidden');
+                titleOther.classList.add('hidden');
+                titleOther.required = false;
+            } else if (requestType === 'Additional Comp (Stipend)') {
                 hoursSection.classList.add('hidden');
                 hoursSelect.required = false;
                 hoursSelect.value = '';
+                hoursSelect.classList.remove('hidden');
+                hoursReadonly.classList.add('hidden');
+                // Restore title dropdown
+                titleSelect.classList.remove('hidden');
+                titleSelect.required = true;
+                titleReadonly.classList.add('hidden');
+                titleReadonly.value = '';
             } else {
                 hoursSection.classList.remove('hidden');
+                hoursSelect.classList.remove('hidden');
                 hoursSelect.required = true;
+                hoursReadonly.classList.add('hidden');
+                hoursReadonly.value = '';
+                // Restore title dropdown
+                titleSelect.classList.remove('hidden');
+                titleSelect.required = true;
+                titleReadonly.classList.add('hidden');
+                titleReadonly.value = '';
             }
 
             // Hire Type: show only for Open Position
@@ -1038,6 +1080,14 @@
             }
             delete data.position_title_other;
 
+            // For Open Position: use read-only values from employee lookup
+            if (data.request_type === 'Open Position') {
+                const titleReadonly = document.getElementById('positionTitleReadonly').value;
+                if (titleReadonly) data.position_title = titleReadonly;
+                const hoursReadonly = document.getElementById('hoursStatusReadonly').value;
+                if (hoursReadonly) data.hours_status = hoursReadonly;
+            }
+
             try {
                 const response = await fetch('/api/requests', {
                     method: 'POST',
@@ -1057,8 +1107,15 @@
                     document.getElementById('spedCheckbox').checked = false;
                     document.getElementById('positionTitleOther').classList.add('hidden');
                     document.getElementById('positionTitleOther').required = false;
+                    document.getElementById('positionTitleReadonly').classList.add('hidden');
+                    document.getElementById('positionTitleReadonly').value = '';
+                    document.getElementById('positionTitleSelect').classList.remove('hidden');
+                    document.getElementById('positionTitleSelect').required = true;
                     document.getElementById('hoursStatusSection').classList.remove('hidden');
+                    document.getElementById('hoursStatusSelect').classList.remove('hidden');
                     document.getElementById('hoursStatusSelect').required = true;
+                    document.getElementById('hoursStatusReadonly').classList.add('hidden');
+                    document.getElementById('hoursStatusReadonly').value = '';
                     document.getElementById('hireTypeSection').classList.add('hidden');
                     document.querySelectorAll('input[name="hire_type"]').forEach(r => r.checked = false);
                     document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
