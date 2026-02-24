@@ -186,12 +186,12 @@ def ensure_hire_type_column():
 
 
 def ensure_employee_lookup_columns():
-    """One-time migration: add employee_email, school, linked_position_id columns."""
+    """One-time migration: add employee_email, school, linked_position_id, candidate_email, candidate_position_id columns."""
     try:
         full_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         table_ref = bq_client.get_table(full_table)
         existing_fields = [f.name for f in table_ref.schema]
-        for col in ['employee_email', 'school', 'linked_position_id']:
+        for col in ['employee_email', 'school', 'linked_position_id', 'candidate_email', 'candidate_position_id']:
             if col not in existing_fields:
                 bq_client.query(f"ALTER TABLE `{full_table}` ADD COLUMN {col} STRING").result()
                 logger.info(f"Added {col} column to requests table")
@@ -373,6 +373,8 @@ def row_to_dict(row):
         'employee_email': getattr(row, 'employee_email', '') or '',
         'school': getattr(row, 'school', '') or '',
         'linked_position_id': getattr(row, 'linked_position_id', '') or '',
+        'candidate_email': getattr(row, 'candidate_email', '') or '',
+        'candidate_position_id': getattr(row, 'candidate_position_id', '') or '',
     }
 
 
@@ -423,7 +425,8 @@ def append_request(request_data):
             ceo_approval, finance_approval, talent_approval, hr_approval,
             final_status, offer_sent, offer_signed, admin_notes,
             position_id, updated_at, updated_by, is_archived, hire_type,
-            employee_email, school, linked_position_id
+            employee_email, school, linked_position_id,
+            candidate_email, candidate_position_id
         ) VALUES (
             @request_id, @submitted_at, @requestor_name, @requestor_email,
             @request_type, @hours_status, @position_title, @reports_to,
@@ -432,7 +435,8 @@ def append_request(request_data):
             @ceo_approval, @finance_approval, @talent_approval, @hr_approval,
             @final_status, @offer_sent, @offer_signed, @admin_notes,
             @position_id, @updated_at, @updated_by, @is_archived, @hire_type,
-            @employee_email, @school, @linked_position_id
+            @employee_email, @school, @linked_position_id,
+            @candidate_email, @candidate_position_id
         )
         """
 
@@ -472,6 +476,8 @@ def append_request(request_data):
                 bigquery.ScalarQueryParameter("employee_email", "STRING", request_data.get('employee_email', '')),
                 bigquery.ScalarQueryParameter("school", "STRING", request_data.get('school', '')),
                 bigquery.ScalarQueryParameter("linked_position_id", "STRING", request_data.get('linked_position_id', '')),
+                bigquery.ScalarQueryParameter("candidate_email", "STRING", request_data.get('candidate_email', '')),
+                bigquery.ScalarQueryParameter("candidate_position_id", "STRING", request_data.get('candidate_position_id', '')),
             ]
         )
 
@@ -598,6 +604,8 @@ def submit_request():
             'employee_email': data.get('employee_email', ''),
             'school': data.get('school', ''),
             'linked_position_id': data.get('linked_position_id', ''),
+            'candidate_email': data.get('candidate_email', ''),
+            'candidate_position_id': data.get('candidate_position_id', ''),
             'ceo_approval': 'Pending',
             'finance_approval': 'Pending',
             'talent_approval': 'Pending',
@@ -691,7 +699,7 @@ def lookup_employee():
         pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
         query = f"""
         SELECT position_id, school, job_category, job_title, first_name, last_name,
-               email_address, current_status, employee_number, hours_status
+               email_address, current_status, employee_number
         FROM `{pc_table}`
         WHERE LOWER(TRIM(email_address)) = LOWER(TRIM(@email))
           AND current_status IN ('Active', 'Filled')
@@ -707,6 +715,28 @@ def lookup_employee():
         for row in results:
             first = getattr(row, 'first_name', '') or ''
             last = getattr(row, 'last_name', '') or ''
+
+            # Look up supervisor from staff_master_list_with_function
+            reports_to = ''
+            try:
+                sml_table = f"{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function"
+                sup_query = f"""
+                SELECT Supervisor_Name__Unsecured_
+                FROM `{sml_table}`
+                WHERE LOWER(TRIM(Email_Address)) = LOWER(TRIM(@email))
+                LIMIT 1
+                """
+                sup_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("email", "STRING", email)
+                    ]
+                )
+                sup_results = bq_client.query(sup_query, job_config=sup_config).result()
+                for sup_row in sup_results:
+                    reports_to = getattr(sup_row, 'Supervisor_Name__Unsecured_', '') or ''
+            except Exception as e:
+                logger.error(f"Error looking up supervisor: {e}")
+
             return jsonify({
                 'found': True,
                 'position_id': row.position_id or '',
@@ -717,7 +747,7 @@ def lookup_employee():
                 'last_name': last,
                 'employee_name': f"{first} {last}".strip(),
                 'current_status': row.current_status or '',
-                'hours_status': getattr(row, 'hours_status', '') or '',
+                'reports_to': reports_to,
             })
 
         return jsonify({'found': False})
@@ -743,6 +773,25 @@ def get_job_titles():
     except Exception as e:
         logger.error(f"Error fetching job titles: {e}")
         return jsonify({'titles': []})
+
+
+@app.route('/api/schools', methods=['GET'])
+def get_schools():
+    """Get distinct schools from the position_control table for the dropdown."""
+    try:
+        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
+        query = f"""
+        SELECT DISTINCT school
+        FROM `{pc_table}`
+        WHERE school IS NOT NULL AND school != ''
+        ORDER BY school
+        """
+        results = bq_client.query(query).result()
+        schools = [row.school for row in results]
+        return jsonify({'schools': schools})
+    except Exception as e:
+        logger.error(f"Error fetching schools: {e}")
+        return jsonify({'schools': []})
 
 
 # ============ Auth Routes ============
@@ -775,7 +824,11 @@ def auth_callback():
                 'picture': user_info.get('picture')
             }
 
-        return redirect('/?admin=true')
+        # Redirect admins to admin view, everyone else to form
+        email = user_info.get('email', '').lower() if user_info else ''
+        if email in [e.lower() for e in ADMIN_USERS]:
+            return redirect('/?admin=true')
+        return redirect('/')
     except Exception as e:
         logger.error(f"OAuth error: {e}")
         return redirect('/?error=auth_failed')
@@ -1068,10 +1121,78 @@ def create_position(request_id):
             'updated_by': user.get('email', 'system'),
         })
 
+        action = 'updated' if linked_id and req.get('request_type') == 'Open Position' else 'created'
+        cascade_request_id = None
+
+        # Auto-create cascading Open Position request if candidate_position_id is set
+        candidate_pos_id = req.get('candidate_position_id', '')
+        if candidate_pos_id:
+            try:
+                # Query position_control for the candidate's current position details
+                pc_query = f"""
+                SELECT position_id, school, job_title, first_name, last_name, email_address
+                FROM `{pc_table}`
+                WHERE position_id = @candidate_position_id
+                LIMIT 1
+                """
+                pc_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("candidate_position_id", "STRING", candidate_pos_id),
+                    ]
+                )
+                pc_results = bq_client.query(pc_query, job_config=pc_config).result()
+                candidate_row = None
+                for row in pc_results:
+                    candidate_row = row
+
+                if candidate_row:
+                    first = getattr(candidate_row, 'first_name', '') or ''
+                    last = getattr(candidate_row, 'last_name', '') or ''
+                    candidate_name = f"{first} {last}".strip()
+
+                    cascade_request_id = str(uuid.uuid4())[:8].upper()
+                    cascade_req = {
+                        'request_id': cascade_request_id,
+                        'submitted_at': now,
+                        'requestor_name': req.get('requestor_name', ''),
+                        'requestor_email': req.get('requestor_email', ''),
+                        'request_type': 'Open Position',
+                        'hours_status': '',
+                        'position_title': getattr(candidate_row, 'job_title', '') or '',
+                        'reports_to': '',
+                        'requested_amount': '',
+                        'employee_name': candidate_name,
+                        'employee_email': getattr(candidate_row, 'email_address', '') or '',
+                        'school': getattr(candidate_row, 'school', '') or '',
+                        'linked_position_id': candidate_pos_id,
+                        'justification': f"Auto-generated: {candidate_name} promoted/transferred to {req.get('position_title', '')} via request {request_id}",
+                        'sped_reviewed': 'N/A',
+                        'school_year': req.get('school_year', ''),
+                        'duration': '',
+                        'payment_dates': '',
+                        'hire_type': '',
+                        'candidate_email': '',
+                        'candidate_position_id': '',
+                        'ceo_approval': 'Pending',
+                        'finance_approval': 'Pending',
+                        'talent_approval': 'Pending',
+                        'hr_approval': 'Pending',
+                        'final_status': 'Pending',
+                        'admin_notes': f'Cascading request from {request_id}',
+                        'position_id': '',
+                        'updated_at': now,
+                        'updated_by': 'System',
+                    }
+                    append_request(cascade_req)
+                    logger.info(f"Created cascading Open Position request {cascade_request_id} for candidate position {candidate_pos_id}")
+            except Exception as e:
+                logger.error(f"Error creating cascading request: {e}")
+
         return jsonify({
             'success': True,
             'position_id': position_id,
-            'action': 'updated' if linked_id and req.get('request_type') == 'Open Position' else 'created',
+            'action': action,
+            'cascade_request_id': cascade_request_id,
         })
 
     except Exception as e:

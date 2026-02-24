@@ -171,6 +171,12 @@
                     <!-- Section 1: Your Information -->
                     <div>
                         <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Your Information</h3>
+                        <div id="signInHint" class="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+                            <p class="text-sm text-blue-800">Sign in with your FirstLine Google account to auto-fill your info.</p>
+                            <a href="/login" class="bg-fls-navy hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap">
+                                Sign In
+                            </a>
+                        </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Your Name *</label>
@@ -183,7 +189,6 @@
                                     placeholder="youremail@firstlineschools.org"
                                     onblur="autoFillFromEmail()"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
-                                <p class="text-xs text-gray-500 mt-1">Enter your email to auto-fill your info if you've submitted before</p>
                             </div>
                         </div>
                     </div>
@@ -223,16 +228,90 @@
                                     </label>
                                 </div>
                             </div>
-                            <div id="hoursStatusSection">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Hours/Status *</label>
-                                <select name="hours_status" id="hoursStatusSelect" required
+                            <!-- Row 2: Action Requested (conditional — Open Position / New Position) -->
+                            <div id="hireTypeSection" class="hidden col-span-1 md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Action Requested *</label>
+                                <div class="flex gap-6 mt-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="hire_type" value="Post Position"
+                                            onchange="handleHireTypeChange()"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">Post Position</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="hire_type" value="Promote or Transfer Internal Candidate"
+                                            onchange="handleHireTypeChange()"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">Promote or Transfer Internal Candidate</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Row 3: Employee Email + Employee Name (email triggers auto-fill for fields below) -->
+                            <div id="employeeEmailSection">
+                                <label id="employeeEmailLabel" class="block text-sm font-medium text-gray-700 mb-1">Employee Email</label>
+                                <div class="flex gap-2">
+                                    <input type="email" name="employee_email" id="employeeEmail"
+                                        placeholder="employee@firstlineschools.org"
+                                        onkeydown="if(event.key==='Enter'){event.preventDefault();lookupEmployeeByEmail()}"
+                                        class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <button type="button" onclick="lookupEmployeeByEmail()"
+                                        class="bg-fls-navy hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-medium text-sm transition whitespace-nowrap">
+                                        Look Up
+                                    </button>
+                                </div>
+                                <p id="employeeEmailHint" class="text-xs text-gray-500 mt-1">Enter employee email and click Look Up to auto-fill position details</p>
+                                <div id="employeeLinkStatus" class="hidden mt-1 text-xs text-green-600 flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span id="employeeLinkText"></span>
+                                </div>
+                                <div id="employeeLookupError" class="hidden mt-1 text-xs text-red-600">No active employee found with that email.</div>
+                            </div>
+                            <div id="employeeNameSection">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
+                                <input type="text" name="employee_name" id="employeeName" placeholder="If already identified"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
-                                    <option value="">Select hours/status...</option>
-                                    <option value="Full-Time (40 hrs)">Full-Time (40 hrs)</option>
-                                    <option value="Part-Time (29 hrs or less)">Part-Time (29 hrs or less)</option>
-                                    <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
+                                <p class="text-xs text-gray-500 mt-1">Leave blank if position is not yet filled</p>
+                            </div>
+
+                            <!-- Row 4: Internal Candidate Email (conditional — Promote/Transfer only) -->
+                            <input type="hidden" name="linked_position_id" id="linkedPositionId">
+                            <input type="hidden" name="candidate_email" id="candidateEmail">
+                            <input type="hidden" name="candidate_position_id" id="candidatePositionId">
+                            <div id="candidateEmailSection" class="hidden col-span-1 md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Internal Candidate Email *</label>
+                                <div class="flex gap-2">
+                                    <input type="email" id="candidateEmailInput"
+                                        placeholder="candidate@firstlineschools.org"
+                                        class="flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <button type="button" onclick="lookupCandidateByEmail()"
+                                        class="bg-fls-navy hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-medium text-sm transition">
+                                        Look Up
+                                    </button>
+                                </div>
+                                <p id="candidateEmailHint" class="text-xs text-gray-500 mt-1">Enter the email of the employee being promoted or transferred</p>
+                                <div id="candidateLookupResult" class="hidden mt-2 p-3 bg-green-50 border border-green-200 rounded-lg text-sm text-green-800">
+                                    <div class="flex items-center gap-1 font-medium">
+                                        <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                        </svg>
+                                        <span id="candidateConfirmText"></span>
+                                    </div>
+                                    <p class="text-xs text-green-600 mt-1">This seat will be opened when the request is approved</p>
+                                </div>
+                                <div id="candidateLookupError" class="hidden mt-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"></div>
+                            </div>
+
+                            <!-- Row 5: School + Position Title (auto-filled from employee lookup above) -->
+                            <div id="schoolSection">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">School</label>
+                                <select name="school" id="schoolSelect"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Select school...</option>
                                 </select>
-                                <input type="text" id="hoursStatusReadonly" readonly
+                                <input type="text" id="schoolReadonly" readonly
                                     placeholder="Auto-filled from employee lookup"
                                     class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
@@ -249,38 +328,28 @@
                                     placeholder="Auto-filled from employee lookup"
                                     class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
-                            <div id="employeeEmailSection">
-                                <label id="employeeEmailLabel" class="block text-sm font-medium text-gray-700 mb-1">Employee Email</label>
-                                <input type="email" name="employee_email" id="employeeEmail"
-                                    placeholder="employee@firstlineschools.org"
-                                    onblur="lookupEmployeeByEmail()"
+
+                            <!-- Row 6: Hours/Status + Reports To -->
+                            <div id="hoursStatusSection">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hours/Status *</label>
+                                <select name="hours_status" id="hoursStatusSelect" required
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
-                                <p id="employeeEmailHint" class="text-xs text-gray-500 mt-1">Enter employee email to auto-fill position details</p>
-                                <div id="employeeLinkStatus" class="hidden mt-1 text-xs text-green-600 flex items-center gap-1">
-                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
-                                    </svg>
-                                    <span id="employeeLinkText"></span>
-                                </div>
-                            </div>
-                            <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
-                                <input type="text" name="employee_name" id="employeeName" placeholder="If already identified"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
-                                <p class="text-xs text-gray-500 mt-1">Leave blank if position is not yet filled</p>
-                            </div>
-                            <div id="schoolSection">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">School</label>
-                                <input type="text" name="school" id="schoolField" readonly
+                                    <option value="">Select hours/status...</option>
+                                    <option value="Full-Time (40 hrs)">Full-Time (40 hrs)</option>
+                                    <option value="Part-Time (29 hrs or less)">Part-Time (29 hrs or less)</option>
+                                    <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
+                                </select>
+                                <input type="text" id="hoursStatusReadonly" readonly
                                     placeholder="Auto-filled from employee lookup"
-                                    class="w-full px-4 py-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
-                            <input type="hidden" name="linked_position_id" id="linkedPositionId">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Reports To</label>
-                                <input type="text" name="reports_to" placeholder="Supervisor name or title"
+                                <input type="text" name="reports_to" id="reportsTo" placeholder="Supervisor name or title"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                             </div>
+
+                            <!-- Row 7: Requested Amount -->
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Requested Amount</label>
                                 <input type="text" name="requested_amount" placeholder="Optional"
@@ -352,21 +421,6 @@
                                         <input type="checkbox" name="payment_date_cb" value="8/15"
                                             class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
                                         <span class="text-sm">8/15</span>
-                                    </label>
-                                </div>
-                            </div>
-                            <div id="hireTypeSection" class="hidden">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Hire Type</label>
-                                <div class="flex gap-6 mt-2">
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="hire_type" value="Post Position"
-                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
-                                        <span class="text-sm">Post Position</span>
-                                    </label>
-                                    <label class="flex items-center gap-2 cursor-pointer">
-                                        <input type="radio" name="hire_type" value="Promote or Transfer Internal Candidate"
-                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
-                                        <span class="text-sm">Promote or Transfer Internal Candidate</span>
                                     </label>
                                 </div>
                             </div>
@@ -617,7 +671,7 @@
                         <span id="modalEmployee"></span>
                     </div>
                     <div id="modalHireTypeRow">
-                        <span class="text-gray-500">Hire Type:</span>
+                        <span class="text-gray-500">Action Requested:</span>
                         <span id="modalHireType"></span>
                     </div>
                     <div id="modalEmployeeEmailRow">
@@ -631,6 +685,19 @@
                     <div id="modalLinkedPositionRow">
                         <span class="text-gray-500">Linked Position:</span>
                         <span id="modalLinkedPosition" class="font-mono text-sm"></span>
+                    </div>
+                    <div id="modalCandidateEmailRow" class="hidden">
+                        <span class="text-gray-500">Candidate Email:</span>
+                        <span id="modalCandidateEmail"></span>
+                    </div>
+                    <div id="modalCandidatePositionRow" class="hidden">
+                        <span class="text-gray-500">Candidate Position:</span>
+                        <span id="modalCandidatePosition" class="font-mono text-sm"></span>
+                    </div>
+                    <div id="modalCascadeNote" class="hidden col-span-2">
+                        <div class="bg-blue-50 border border-blue-200 rounded-lg p-3 text-sm text-blue-800">
+                            <strong>Note:</strong> When a position is created for this request, a cascading Open Position request will be auto-generated for the candidate's current seat.
+                        </div>
                     </div>
                     <div class="col-span-2">
                         <span class="text-gray-500">Justification:</span>
@@ -796,6 +863,7 @@
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuthStatus();
             await loadJobTitles();
+            await loadSchools();
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('admin') === 'true' && isAdmin) {
@@ -830,6 +898,25 @@
             }
         }
 
+        // Load schools from position_control table
+        async function loadSchools() {
+            try {
+                const response = await fetch('/api/schools');
+                const data = await response.json();
+                const select = document.getElementById('schoolSelect');
+                select.innerHTML = '<option value="">Select school...</option>';
+
+                data.schools.forEach(school => {
+                    const option = document.createElement('option');
+                    option.value = school;
+                    option.textContent = school;
+                    select.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to load schools:', error);
+            }
+        }
+
         function handlePositionTitleChange() {
             const select = document.getElementById('positionTitleSelect');
             const otherInput = document.getElementById('positionTitleOther');
@@ -858,6 +945,23 @@
                     document.getElementById('userName').textContent = data.user.name || data.user.email;
                     isAdmin = data.is_admin;
                     userPermissions = data.permissions;
+
+                    // Auto-fill requestor info from Google session
+                    const nameField = document.getElementById('requestorName');
+                    const emailField = document.getElementById('requestorEmail');
+                    if (data.user.name) {
+                        nameField.value = data.user.name;
+                        nameField.readOnly = true;
+                        nameField.classList.add('bg-gray-50');
+                    }
+                    if (data.user.email) {
+                        emailField.value = data.user.email;
+                        emailField.readOnly = true;
+                        emailField.classList.add('bg-gray-50');
+                    }
+                    // Hide the sign-in hint
+                    const signInHint = document.getElementById('signInHint');
+                    if (signInHint) signInHint.classList.add('hidden');
                 } else {
                     document.getElementById('loginBtn').classList.remove('hidden');
                     document.getElementById('userInfo').classList.add('hidden');
@@ -912,7 +1016,9 @@
 
             const statusEl = document.getElementById('employeeLinkStatus');
             const statusText = document.getElementById('employeeLinkText');
+            const errorEl = document.getElementById('employeeLookupError');
             statusEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
 
             try {
                 const response = await fetch(`/api/employee/lookup?email=${encodeURIComponent(email)}`);
@@ -921,14 +1027,26 @@
                 if (data.found) {
                     // Auto-fill fields
                     document.getElementById('employeeName').value = data.employee_name;
-                    document.getElementById('schoolField').value = data.school || '';
                     document.getElementById('linkedPositionId').value = data.position_id || '';
+                    if (data.reports_to) document.getElementById('reportsTo').value = data.reports_to;
 
                     // Auto-fill read-only fields (used for Open Position)
                     document.getElementById('positionTitleReadonly').value = data.job_title || '';
-                    document.getElementById('hoursStatusReadonly').value = data.hours_status || '';
+                    document.getElementById('schoolReadonly').value = data.school || '';
 
-                    // Also set the dropdown value for non-Open Position types
+                    // School: swap dropdown to read-only showing looked-up value
+                    const schoolSelect = document.getElementById('schoolSelect');
+                    const schoolReadonly = document.getElementById('schoolReadonly');
+                    schoolSelect.classList.add('hidden');
+                    schoolReadonly.classList.remove('hidden');
+
+                    // Also set the dropdown value as fallback
+                    const schoolMatch = Array.from(schoolSelect.options).find(
+                        o => o.value.toLowerCase() === (data.school || '').toLowerCase()
+                    );
+                    if (schoolMatch) schoolSelect.value = schoolMatch.value;
+
+                    // Also set the title dropdown value for non-Open Position types
                     const titleSelect = document.getElementById('positionTitleSelect');
                     const matchOption = Array.from(titleSelect.options).find(
                         o => o.value.toLowerCase() === (data.job_title || '').toLowerCase()
@@ -940,11 +1058,72 @@
                     }
 
                     // Show linked indicator
-                    statusText.textContent = `Linked to position ${data.position_id}`;
+                    statusText.textContent = `Linked to position ${data.position_id} — ${data.employee_name}, ${data.job_title} at ${data.school}`;
                     statusEl.classList.remove('hidden');
+                } else {
+                    errorEl.classList.remove('hidden');
                 }
             } catch (error) {
                 console.error('Employee lookup failed:', error);
+                errorEl.textContent = 'Lookup failed. Please try again.';
+                errorEl.classList.remove('hidden');
+            }
+        }
+
+        // Handle Action Requested radio change — show/hide candidate email section
+        function handleHireTypeChange() {
+            const selected = document.querySelector('input[name="hire_type"]:checked');
+            const candidateSection = document.getElementById('candidateEmailSection');
+            const candidateInput = document.getElementById('candidateEmailInput');
+
+            if (selected && selected.value === 'Promote or Transfer Internal Candidate') {
+                candidateSection.classList.remove('hidden');
+                candidateInput.required = true;
+            } else {
+                candidateSection.classList.add('hidden');
+                candidateInput.required = false;
+                // Clear candidate fields
+                candidateInput.value = '';
+                document.getElementById('candidateEmail').value = '';
+                document.getElementById('candidatePositionId').value = '';
+                document.getElementById('candidateLookupResult').classList.add('hidden');
+                document.getElementById('candidateLookupError').classList.add('hidden');
+            }
+        }
+
+        // Look up internal candidate from position_control table
+        async function lookupCandidateByEmail() {
+            const email = document.getElementById('candidateEmailInput').value.trim();
+            if (!email) return;
+
+            const resultEl = document.getElementById('candidateLookupResult');
+            const errorEl = document.getElementById('candidateLookupError');
+            const confirmText = document.getElementById('candidateConfirmText');
+            resultEl.classList.add('hidden');
+            errorEl.classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/employee/lookup?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                if (data.found) {
+                    // Store candidate data in hidden fields
+                    document.getElementById('candidateEmail').value = email;
+                    document.getElementById('candidatePositionId').value = data.position_id || '';
+
+                    // Show confirmation
+                    confirmText.textContent = `${data.employee_name} — ${data.job_title} at ${data.school} (this seat will be opened)`;
+                    resultEl.classList.remove('hidden');
+                } else {
+                    errorEl.textContent = 'No active employee found with that email address.';
+                    errorEl.classList.remove('hidden');
+                    document.getElementById('candidateEmail').value = '';
+                    document.getElementById('candidatePositionId').value = '';
+                }
+            } catch (error) {
+                console.error('Candidate lookup failed:', error);
+                errorEl.textContent = 'Lookup failed. Please try again.';
+                errorEl.classList.remove('hidden');
             }
         }
 
@@ -954,81 +1133,110 @@
             const paymentSection = document.getElementById('paymentDatesSection');
             const hoursSection = document.getElementById('hoursStatusSection');
             const hoursSelect = document.getElementById('hoursStatusSelect');
+            const hoursReadonly = document.getElementById('hoursStatusReadonly');
             const hireTypeSection = document.getElementById('hireTypeSection');
+            const titleSelect = document.getElementById('positionTitleSelect');
+            const titleReadonly = document.getElementById('positionTitleReadonly');
+            const titleOther = document.getElementById('positionTitleOther');
+            const schoolSelect = document.getElementById('schoolSelect');
+            const schoolReadonly = document.getElementById('schoolReadonly');
+            const employeeEmailSection = document.getElementById('employeeEmailSection');
+            const employeeNameSection = document.getElementById('employeeNameSection');
+            const emailLabel = document.getElementById('employeeEmailLabel');
+            const emailHint = document.getElementById('employeeEmailHint');
+            const emailInput = document.getElementById('employeeEmail');
+            const hireTypeRadios = document.querySelectorAll('input[name="hire_type"]');
 
-            // Payment dates: show only for stipends
+            // --- Payment dates: show only for stipends ---
             if (requestType === 'Additional Comp (Stipend)') {
                 paymentSection.classList.remove('hidden');
             } else {
                 paymentSection.classList.add('hidden');
-                // Uncheck all payment date checkboxes
                 document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // Hours/Status & Position Title: swap to read-only for Open Position
-            const hoursReadonly = document.getElementById('hoursStatusReadonly');
-            const titleSelect = document.getElementById('positionTitleSelect');
-            const titleReadonly = document.getElementById('positionTitleReadonly');
-            const titleOther = document.getElementById('positionTitleOther');
+            // --- Action Requested: show for Open Position and New Position ---
+            if (requestType === 'Open Position' || requestType === 'New Position') {
+                hireTypeSection.classList.remove('hidden');
+                hireTypeRadios.forEach(r => r.required = true);
+            } else {
+                hireTypeSection.classList.add('hidden');
+                hireTypeRadios.forEach(r => { r.checked = false; r.required = false; });
+                handleHireTypeChange();
+            }
 
+            // --- Employee Email / Employee Name visibility ---
             if (requestType === 'Open Position') {
-                // Hours: hide dropdown, show read-only
-                hoursSelect.classList.add('hidden');
-                hoursSelect.required = false;
-                hoursSelect.value = '';
-                hoursReadonly.classList.remove('hidden');
-                hoursSection.classList.remove('hidden');
-                // Title: hide dropdown, show read-only
+                // Show: departing employee email is required for lookup
+                employeeEmailSection.classList.remove('hidden');
+                employeeNameSection.classList.remove('hidden');
+                emailLabel.textContent = 'Departing Employee Email *';
+                emailHint.textContent = 'Enter the email of the employee leaving this position';
+                emailInput.required = true;
+            } else if (requestType === 'New Position') {
+                // Hide: no existing employee for a brand-new position
+                employeeEmailSection.classList.add('hidden');
+                employeeNameSection.classList.add('hidden');
+                emailInput.required = false;
+                emailInput.value = '';
+                document.getElementById('employeeName').value = '';
+                document.getElementById('linkedPositionId').value = '';
+                document.getElementById('employeeLinkStatus').classList.add('hidden');
+            } else {
+                // Other types: show as optional
+                employeeEmailSection.classList.remove('hidden');
+                employeeNameSection.classList.remove('hidden');
+                emailLabel.textContent = 'Employee Email';
+                emailHint.textContent = 'Enter employee email to auto-fill position details';
+                emailInput.required = false;
+            }
+
+            // --- School / Position Title / Hours: read-only for Open Position, dropdowns for everything else ---
+            if (requestType === 'Open Position') {
+                // School: read-only (filled by lookup)
+                schoolSelect.classList.add('hidden');
+                schoolReadonly.classList.remove('hidden');
+                // Title: read-only (filled by lookup)
                 titleSelect.classList.add('hidden');
                 titleSelect.required = false;
                 titleReadonly.classList.remove('hidden');
                 titleOther.classList.add('hidden');
                 titleOther.required = false;
+                // Hours: read-only (filled by lookup)
+                hoursSection.classList.remove('hidden');
+                hoursSelect.classList.add('hidden');
+                hoursSelect.required = false;
+                hoursReadonly.classList.remove('hidden');
             } else if (requestType === 'Additional Comp (Stipend)') {
+                // School: dropdown
+                schoolSelect.classList.remove('hidden');
+                schoolReadonly.classList.add('hidden');
+                schoolReadonly.value = '';
+                // Title: dropdown
+                titleSelect.classList.remove('hidden');
+                titleSelect.required = true;
+                titleReadonly.classList.add('hidden');
+                titleReadonly.value = '';
+                // Hours: hidden for stipends
                 hoursSection.classList.add('hidden');
                 hoursSelect.required = false;
                 hoursSelect.value = '';
                 hoursSelect.classList.remove('hidden');
                 hoursReadonly.classList.add('hidden');
-                // Restore title dropdown
+            } else {
+                // All other types: show dropdowns
+                schoolSelect.classList.remove('hidden');
+                schoolReadonly.classList.add('hidden');
+                schoolReadonly.value = '';
                 titleSelect.classList.remove('hidden');
                 titleSelect.required = true;
                 titleReadonly.classList.add('hidden');
                 titleReadonly.value = '';
-            } else {
                 hoursSection.classList.remove('hidden');
                 hoursSelect.classList.remove('hidden');
                 hoursSelect.required = true;
                 hoursReadonly.classList.add('hidden');
                 hoursReadonly.value = '';
-                // Restore title dropdown
-                titleSelect.classList.remove('hidden');
-                titleSelect.required = true;
-                titleReadonly.classList.add('hidden');
-                titleReadonly.value = '';
-            }
-
-            // Hire Type: show only for Open Position
-            if (requestType === 'Open Position') {
-                hireTypeSection.classList.remove('hidden');
-            } else {
-                hireTypeSection.classList.add('hidden');
-                // Clear hire type selection
-                document.querySelectorAll('input[name="hire_type"]').forEach(r => r.checked = false);
-            }
-
-            // Employee Email: update label/hint based on request type
-            const emailLabel = document.getElementById('employeeEmailLabel');
-            const emailHint = document.getElementById('employeeEmailHint');
-            const emailInput = document.getElementById('employeeEmail');
-            if (requestType === 'Open Position') {
-                emailLabel.textContent = 'Departing Employee Email *';
-                emailHint.textContent = 'Enter the email of the employee leaving this position';
-                emailInput.required = true;
-            } else {
-                emailLabel.textContent = 'Employee Email';
-                emailHint.textContent = 'Enter employee email to auto-fill position details';
-                emailInput.required = false;
             }
         }
 
@@ -1080,12 +1288,23 @@
             }
             delete data.position_title_other;
 
+            // Validate candidate lookup was completed for Promote/Transfer
+            if (data.hire_type === 'Promote or Transfer Internal Candidate' && !data.candidate_email) {
+                document.getElementById('errorText').textContent = 'Please look up the internal candidate before submitting.';
+                document.getElementById('errorMessage').classList.remove('hidden');
+                submitBtn.disabled = false;
+                loader.classList.add('hidden');
+                return;
+            }
+
             // For Open Position: use read-only values from employee lookup
             if (data.request_type === 'Open Position') {
                 const titleReadonly = document.getElementById('positionTitleReadonly').value;
                 if (titleReadonly) data.position_title = titleReadonly;
                 const hoursReadonly = document.getElementById('hoursStatusReadonly').value;
                 if (hoursReadonly) data.hours_status = hoursReadonly;
+                const schoolReadonly = document.getElementById('schoolReadonly').value;
+                if (schoolReadonly) data.school = schoolReadonly;
             }
 
             try {
@@ -1117,15 +1336,28 @@
                     document.getElementById('hoursStatusReadonly').classList.add('hidden');
                     document.getElementById('hoursStatusReadonly').value = '';
                     document.getElementById('hireTypeSection').classList.add('hidden');
-                    document.querySelectorAll('input[name="hire_type"]').forEach(r => r.checked = false);
+                    document.querySelectorAll('input[name="hire_type"]').forEach(r => { r.checked = false; r.required = false; });
+                    document.getElementById('candidateEmailSection').classList.add('hidden');
+                    document.getElementById('candidateEmailInput').value = '';
+                    document.getElementById('candidateEmailInput').required = false;
+                    document.getElementById('candidateEmail').value = '';
+                    document.getElementById('candidatePositionId').value = '';
+                    document.getElementById('candidateLookupResult').classList.add('hidden');
+                    document.getElementById('candidateLookupError').classList.add('hidden');
                     document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
                     document.getElementById('employeeEmail').value = '';
                     document.getElementById('employeeEmail').required = false;
                     document.getElementById('employeeEmailLabel').textContent = 'Employee Email';
                     document.getElementById('employeeEmailHint').textContent = 'Enter employee email to auto-fill position details';
-                    document.getElementById('schoolField').value = '';
+                    document.getElementById('employeeEmailSection').classList.remove('hidden');
+                    document.getElementById('employeeNameSection').classList.remove('hidden');
+                    document.getElementById('schoolSelect').classList.remove('hidden');
+                    document.getElementById('schoolSelect').value = '';
+                    document.getElementById('schoolReadonly').classList.add('hidden');
+                    document.getElementById('schoolReadonly').value = '';
                     document.getElementById('linkedPositionId').value = '';
                     document.getElementById('employeeLinkStatus').classList.add('hidden');
+                    document.getElementById('employeeLookupError').classList.add('hidden');
                     window.scrollTo({ top: document.getElementById('successMessage').offsetTop - 100, behavior: 'smooth' });
                 } else {
                     document.getElementById('errorText').textContent = result.error || 'Failed to submit request';
@@ -1348,6 +1580,11 @@
             document.getElementById('modalSchoolRow').classList.toggle('hidden', !req.school);
             document.getElementById('modalLinkedPosition').textContent = req.linked_position_id || '-';
             document.getElementById('modalLinkedPositionRow').classList.toggle('hidden', !req.linked_position_id);
+            document.getElementById('modalCandidateEmail').textContent = req.candidate_email || '-';
+            document.getElementById('modalCandidateEmailRow').classList.toggle('hidden', !req.candidate_email);
+            document.getElementById('modalCandidatePosition').textContent = req.candidate_position_id || '-';
+            document.getElementById('modalCandidatePositionRow').classList.toggle('hidden', !req.candidate_position_id);
+            document.getElementById('modalCascadeNote').classList.toggle('hidden', !req.candidate_position_id || !!req.position_id);
             document.getElementById('modalJustification').textContent = req.justification || '-';
             document.getElementById('modalAmount').textContent = req.requested_amount || '-';
             document.getElementById('modalDuration').textContent = req.duration || '-';
@@ -1547,7 +1784,11 @@
 
                 if (response.ok && result.success) {
                     const actionMsg = result.action === 'updated' ? 'Position updated to Open' : 'Position created';
-                    alert(`${actionMsg} successfully!\nPosition ID: ${result.position_id}`);
+                    let msg = `${actionMsg} successfully!\nPosition ID: ${result.position_id}`;
+                    if (result.cascade_request_id) {
+                        msg += `\n\nA cascading Open Position request (${result.cascade_request_id}) has been auto-created for the candidate's previous seat.`;
+                    }
+                    alert(msg);
                     closeModal();
                     loadAdminData();
                 } else {
