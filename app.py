@@ -135,8 +135,8 @@ def get_user_permissions(email):
 
 # Request type options
 REQUEST_TYPES = [
-    'New Hire - Vacancy',
-    'New Hire - Replacement',
+    'Open Position',
+    'New Position',
     'Additional Comp (Stipend)',
     'Status Change',
     'Title/Role Change',
@@ -172,7 +172,36 @@ def ensure_is_archived_column():
         logger.error(f"Migration error (is_archived): {e}")
 
 
+def ensure_hire_type_column():
+    """One-time migration: add hire_type column if it doesn't exist."""
+    try:
+        full_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+        table_ref = bq_client.get_table(full_table)
+        existing_fields = [f.name for f in table_ref.schema]
+        if 'hire_type' not in existing_fields:
+            bq_client.query(f"ALTER TABLE `{full_table}` ADD COLUMN hire_type STRING").result()
+            logger.info("Added hire_type column to requests table")
+    except Exception as e:
+        logger.error(f"Migration error (hire_type): {e}")
+
+
+def ensure_employee_lookup_columns():
+    """One-time migration: add employee_email, school, linked_position_id columns."""
+    try:
+        full_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
+        table_ref = bq_client.get_table(full_table)
+        existing_fields = [f.name for f in table_ref.schema]
+        for col in ['employee_email', 'school', 'linked_position_id']:
+            if col not in existing_fields:
+                bq_client.query(f"ALTER TABLE `{full_table}` ADD COLUMN {col} STRING").result()
+                logger.info(f"Added {col} column to requests table")
+    except Exception as e:
+        logger.error(f"Migration error (employee_lookup_columns): {e}")
+
+
 ensure_is_archived_column()
+ensure_hire_type_column()
+ensure_employee_lookup_columns()
 
 # OAuth setup
 oauth = OAuth(app)
@@ -340,6 +369,10 @@ def row_to_dict(row):
         'updated_at': row.updated_at.isoformat() if row.updated_at else '',
         'updated_by': row.updated_by or '',
         'is_archived': bool(getattr(row, 'is_archived', False) or False),
+        'hire_type': getattr(row, 'hire_type', '') or '',
+        'employee_email': getattr(row, 'employee_email', '') or '',
+        'school': getattr(row, 'school', '') or '',
+        'linked_position_id': getattr(row, 'linked_position_id', '') or '',
     }
 
 
@@ -389,7 +422,8 @@ def append_request(request_data):
             school_year, duration, payment_dates,
             ceo_approval, finance_approval, talent_approval, hr_approval,
             final_status, offer_sent, offer_signed, admin_notes,
-            position_id, updated_at, updated_by, is_archived
+            position_id, updated_at, updated_by, is_archived, hire_type,
+            employee_email, school, linked_position_id
         ) VALUES (
             @request_id, @submitted_at, @requestor_name, @requestor_email,
             @request_type, @hours_status, @position_title, @reports_to,
@@ -397,7 +431,8 @@ def append_request(request_data):
             @school_year, @duration, @payment_dates,
             @ceo_approval, @finance_approval, @talent_approval, @hr_approval,
             @final_status, @offer_sent, @offer_signed, @admin_notes,
-            @position_id, @updated_at, @updated_by, @is_archived
+            @position_id, @updated_at, @updated_by, @is_archived, @hire_type,
+            @employee_email, @school, @linked_position_id
         )
         """
 
@@ -433,6 +468,10 @@ def append_request(request_data):
                 bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", updated_at),
                 bigquery.ScalarQueryParameter("updated_by", "STRING", request_data.get('updated_by', '')),
                 bigquery.ScalarQueryParameter("is_archived", "BOOL", False),
+                bigquery.ScalarQueryParameter("hire_type", "STRING", request_data.get('hire_type', '')),
+                bigquery.ScalarQueryParameter("employee_email", "STRING", request_data.get('employee_email', '')),
+                bigquery.ScalarQueryParameter("school", "STRING", request_data.get('school', '')),
+                bigquery.ScalarQueryParameter("linked_position_id", "STRING", request_data.get('linked_position_id', '')),
             ]
         )
 
@@ -518,7 +557,11 @@ def submit_request():
 
         # Validate required fields
         required_fields = ['requestor_name', 'requestor_email', 'request_type',
-                          'hours_status', 'position_title', 'justification', 'school_year']
+                          'position_title', 'justification', 'school_year']
+
+        # hours_status is required for all types except stipends
+        if data.get('request_type') != 'Additional Comp (Stipend)':
+            required_fields.append('hours_status')
 
         for field in required_fields:
             if not data.get(field):
@@ -545,6 +588,10 @@ def submit_request():
             'school_year': data.get('school_year', ''),
             'duration': data.get('duration', ''),
             'payment_dates': data.get('payment_dates', ''),
+            'hire_type': data.get('hire_type', ''),
+            'employee_email': data.get('employee_email', ''),
+            'school': data.get('school', ''),
+            'linked_position_id': data.get('linked_position_id', ''),
             'ceo_approval': 'Pending',
             'finance_approval': 'Pending',
             'talent_approval': 'Pending',
@@ -624,6 +671,52 @@ def lookup_staff():
             })
 
     return jsonify({'found': False})
+
+
+@app.route('/api/employee/lookup', methods=['GET'])
+def lookup_employee():
+    """Look up employee info from position_control table by email."""
+    email = request.args.get('email', '').strip()
+
+    if not email:
+        return jsonify({'error': 'Email required'}), 400
+
+    try:
+        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
+        query = f"""
+        SELECT position_id, school, job_category, job_title, first_name, last_name,
+               email_address, current_status, employee_number
+        FROM `{pc_table}`
+        WHERE LOWER(TRIM(email_address)) = LOWER(TRIM(@email))
+          AND current_status IN ('Active', 'Filled')
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ScalarQueryParameter("email", "STRING", email)
+            ]
+        )
+        results = bq_client.query(query, job_config=job_config).result()
+
+        for row in results:
+            first = getattr(row, 'first_name', '') or ''
+            last = getattr(row, 'last_name', '') or ''
+            return jsonify({
+                'found': True,
+                'position_id': row.position_id or '',
+                'school': row.school or '',
+                'job_category': getattr(row, 'job_category', '') or '',
+                'job_title': row.job_title or '',
+                'first_name': first,
+                'last_name': last,
+                'employee_name': f"{first} {last}".strip(),
+                'current_status': row.current_status or '',
+            })
+
+        return jsonify({'found': False})
+    except Exception as e:
+        logger.error(f"Error looking up employee: {e}")
+        return jsonify({'found': False, 'error': str(e)})
 
 
 @app.route('/api/job-titles', methods=['GET'])
@@ -894,56 +987,84 @@ def create_position(request_id):
             return jsonify({'error': 'Position already created for this request', 'position_id': req['position_id']}), 400
 
         user = session.get('user', {})
-
-        # Generate new position ID
-        position_id = str(uuid.uuid4())
         now = datetime.now().isoformat()
+        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
 
         # Map school year to start_year format
         school_year = req.get('school_year', '')
         start_year = school_year.replace(' SY', '') if school_year else '25-26'
 
-        # Insert into position_control table
-        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
-        pc_query = f"""
-        INSERT INTO `{pc_table}` (
-            position_id, school, job_title, current_status,
-            start_year, notes, candidate_name, created_at, updated_at, updated_by
-        ) VALUES (
-            @position_id, @school, @job_title, @current_status,
-            @start_year, @notes, @candidate_name, @created_at, @updated_at, @updated_by
-        )
-        """
+        linked_id = req.get('linked_position_id', '')
 
-        pc_config = bigquery.QueryJobConfig(
-            query_parameters=[
-                bigquery.ScalarQueryParameter("position_id", "STRING", position_id),
-                bigquery.ScalarQueryParameter("school", "STRING", ""),
-                bigquery.ScalarQueryParameter("job_title", "STRING", req.get('position_title', '')),
-                bigquery.ScalarQueryParameter("current_status", "STRING", "Open"),
-                bigquery.ScalarQueryParameter("start_year", "STRING", start_year),
-                bigquery.ScalarQueryParameter("notes", "STRING", f"Created from PCF request {request_id}"),
-                bigquery.ScalarQueryParameter("candidate_name", "STRING", req.get('employee_name', '')),
-                bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", datetime.now()),
-                bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now()),
-                bigquery.ScalarQueryParameter("updated_by", "STRING", user.get('email', 'system')),
-            ]
-        )
+        # Path A: Linked position exists and request is Open Position — UPDATE existing row
+        if linked_id and req.get('request_type') == 'Open Position':
+            position_id = linked_id
 
-        bq_client.query(pc_query, job_config=pc_config).result()
+            pc_query = f"""
+            UPDATE `{pc_table}` SET
+                current_status = 'Open',
+                candidate_name = '',
+                employee_26_27 = '',
+                status_26_27 = 'Open',
+                notes = CONCAT(COALESCE(notes, ''), '\\nVacated via PCF request {request_id}'),
+                updated_at = CURRENT_TIMESTAMP(),
+                updated_by = @updated_by
+            WHERE position_id = @linked_position_id
+            """
 
-        # Update the request with the new position_id
+            pc_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("linked_position_id", "STRING", linked_id),
+                    bigquery.ScalarQueryParameter("updated_by", "STRING", user.get('email', 'system')),
+                ]
+            )
+
+            bq_client.query(pc_query, job_config=pc_config).result()
+            logger.info(f"Updated position {position_id} to Open from request {request_id}")
+
+        # Path B: No linked position — INSERT new row
+        else:
+            position_id = str(uuid.uuid4())
+
+            pc_query = f"""
+            INSERT INTO `{pc_table}` (
+                position_id, school, job_title, current_status,
+                start_year, notes, candidate_name, created_at, updated_at, updated_by
+            ) VALUES (
+                @position_id, @school, @job_title, @current_status,
+                @start_year, @notes, @candidate_name, @created_at, @updated_at, @updated_by
+            )
+            """
+
+            pc_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("position_id", "STRING", position_id),
+                    bigquery.ScalarQueryParameter("school", "STRING", req.get('school', '')),
+                    bigquery.ScalarQueryParameter("job_title", "STRING", req.get('position_title', '')),
+                    bigquery.ScalarQueryParameter("current_status", "STRING", "Open"),
+                    bigquery.ScalarQueryParameter("start_year", "STRING", start_year),
+                    bigquery.ScalarQueryParameter("notes", "STRING", f"Created from PCF request {request_id}"),
+                    bigquery.ScalarQueryParameter("candidate_name", "STRING", req.get('employee_name', '')),
+                    bigquery.ScalarQueryParameter("created_at", "TIMESTAMP", datetime.now()),
+                    bigquery.ScalarQueryParameter("updated_at", "TIMESTAMP", datetime.now()),
+                    bigquery.ScalarQueryParameter("updated_by", "STRING", user.get('email', 'system')),
+                ]
+            )
+
+            bq_client.query(pc_query, job_config=pc_config).result()
+            logger.info(f"Created position {position_id} from request {request_id}")
+
+        # Update the request with the position_id
         update_request(request_id, {
             'position_id': position_id,
             'updated_at': now,
             'updated_by': user.get('email', 'system'),
         })
 
-        logger.info(f"Created position {position_id} from request {request_id}")
-
         return jsonify({
             'success': True,
             'position_id': position_id,
+            'action': 'updated' if linked_id and req.get('request_type') == 'Open Position' else 'created',
         })
 
     except Exception as e:

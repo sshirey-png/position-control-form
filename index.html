@@ -197,8 +197,8 @@
                                 <select name="request_type" id="requestType" required onchange="handleRequestTypeChange()"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                                     <option value="">Select request type...</option>
-                                    <option value="New Hire - Vacancy">New Hire - Vacancy</option>
-                                    <option value="New Hire - Replacement">New Hire - Replacement</option>
+                                    <option value="Open Position">Open Position</option>
+                                    <option value="New Position">New Position</option>
                                     <option value="Additional Comp (Stipend)">Additional Comp (Stipend)</option>
                                     <option value="Status Change">Status Change</option>
                                     <option value="Title/Role Change">Title/Role Change</option>
@@ -223,9 +223,9 @@
                                     </label>
                                 </div>
                             </div>
-                            <div>
+                            <div id="hoursStatusSection">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Hours/Status *</label>
-                                <select name="hours_status" required
+                                <select name="hours_status" id="hoursStatusSelect" required
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                                     <option value="">Select hours/status...</option>
                                     <option value="Full-Time (40 hrs)">Full-Time (40 hrs)</option>
@@ -244,6 +244,33 @@
                                     class="hidden w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange mt-2">
                             </div>
                             <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Email</label>
+                                <input type="email" name="employee_email" id="employeeEmail"
+                                    placeholder="employee@firstlineschools.org"
+                                    onblur="lookupEmployeeByEmail()"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <p class="text-xs text-gray-500 mt-1">Enter employee email to auto-fill position details</p>
+                                <div id="employeeLinkStatus" class="hidden mt-1 text-xs text-green-600 flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                                    </svg>
+                                    <span id="employeeLinkText"></span>
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
+                                <input type="text" name="employee_name" id="employeeName" placeholder="If already identified"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <p class="text-xs text-gray-500 mt-1">Leave blank if position is not yet filled</p>
+                            </div>
+                            <div id="schoolSection">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">School</label>
+                                <input type="text" name="school" id="schoolField" readonly
+                                    placeholder="Auto-filled from employee lookup"
+                                    class="w-full px-4 py-2 border rounded-lg bg-gray-50 focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            </div>
+                            <input type="hidden" name="linked_position_id" id="linkedPositionId">
+                            <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Reports To</label>
                                 <input type="text" name="reports_to" placeholder="Supervisor name or title"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
@@ -253,12 +280,6 @@
                                 <input type="text" name="requested_amount" placeholder="Optional"
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                                 <p class="text-xs text-gray-500 mt-1">Talent will approve final amount</p>
-                            </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Employee Name</label>
-                                <input type="text" name="employee_name" placeholder="If already identified"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
-                                <p class="text-xs text-gray-500 mt-1">Leave blank if position is not yet filled</p>
                             </div>
                         </div>
                     </div>
@@ -295,8 +316,53 @@
                             </div>
                             <div id="paymentDatesSection" class="hidden">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Requested Payment Dates</label>
-                                <input type="text" name="payment_dates" placeholder="e.g., Monthly from Jan - May 2026"
-                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                <div class="flex flex-wrap gap-4 mt-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="10/31"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">10/31</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="12/15"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">12/15</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="3/15"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">3/15</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="6/15"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">6/15</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="7/15"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">7/15</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="checkbox" name="payment_date_cb" value="8/15"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange rounded">
+                                        <span class="text-sm">8/15</span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div id="hireTypeSection" class="hidden">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Hire Type</label>
+                                <div class="flex gap-6 mt-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="hire_type" value="Post Position"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">Post Position</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="hire_type" value="Promote or Transfer Internal Candidate"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">Promote or Transfer Internal Candidate</span>
+                                    </label>
+                                </div>
                             </div>
                             <div>
                                 <label class="flex items-center gap-2 cursor-pointer">
@@ -433,8 +499,8 @@
                         <select id="typeFilter" onchange="filterRequests()"
                             class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                             <option value="">All Types</option>
-                            <option value="New Hire - Vacancy">New Hire - Vacancy</option>
-                            <option value="New Hire - Replacement">New Hire - Replacement</option>
+                            <option value="Open Position">Open Position</option>
+                            <option value="New Position">New Position</option>
                             <option value="Additional Comp (Stipend)">Additional Comp (Stipend)</option>
                             <option value="Status Change">Status Change</option>
                             <option value="Title/Role Change">Title/Role Change</option>
@@ -543,6 +609,22 @@
                     <div>
                         <span class="text-gray-500">Employee:</span>
                         <span id="modalEmployee"></span>
+                    </div>
+                    <div id="modalHireTypeRow">
+                        <span class="text-gray-500">Hire Type:</span>
+                        <span id="modalHireType"></span>
+                    </div>
+                    <div id="modalEmployeeEmailRow">
+                        <span class="text-gray-500">Employee Email:</span>
+                        <span id="modalEmployeeEmail"></span>
+                    </div>
+                    <div id="modalSchoolRow">
+                        <span class="text-gray-500">School:</span>
+                        <span id="modalSchool"></span>
+                    </div>
+                    <div id="modalLinkedPositionRow">
+                        <span class="text-gray-500">Linked Position:</span>
+                        <span id="modalLinkedPosition" class="font-mono text-sm"></span>
                     </div>
                     <div class="col-span-2">
                         <span class="text-gray-500">Justification:</span>
@@ -817,15 +899,80 @@
             }
         }
 
+        // Look up employee from position_control table
+        async function lookupEmployeeByEmail() {
+            const email = document.getElementById('employeeEmail').value.trim();
+            if (!email) return;
+
+            const statusEl = document.getElementById('employeeLinkStatus');
+            const statusText = document.getElementById('employeeLinkText');
+            statusEl.classList.add('hidden');
+
+            try {
+                const response = await fetch(`/api/employee/lookup?email=${encodeURIComponent(email)}`);
+                const data = await response.json();
+
+                if (data.found) {
+                    // Auto-fill fields
+                    document.getElementById('employeeName').value = data.employee_name;
+                    document.getElementById('schoolField').value = data.school || '';
+                    document.getElementById('linkedPositionId').value = data.position_id || '';
+
+                    // Auto-select position title in dropdown if it matches
+                    const titleSelect = document.getElementById('positionTitleSelect');
+                    const matchOption = Array.from(titleSelect.options).find(
+                        o => o.value.toLowerCase() === (data.job_title || '').toLowerCase()
+                    );
+                    if (matchOption) {
+                        titleSelect.value = matchOption.value;
+                        // Hide "other" input if it was showing
+                        document.getElementById('positionTitleOther').classList.add('hidden');
+                        document.getElementById('positionTitleOther').required = false;
+                    }
+
+                    // Show linked indicator
+                    statusText.textContent = `Linked to position ${data.position_id}`;
+                    statusEl.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Employee lookup failed:', error);
+            }
+        }
+
         // Conditional form fields
         function handleRequestTypeChange() {
             const requestType = document.getElementById('requestType').value;
             const paymentSection = document.getElementById('paymentDatesSection');
+            const hoursSection = document.getElementById('hoursStatusSection');
+            const hoursSelect = document.getElementById('hoursStatusSelect');
+            const hireTypeSection = document.getElementById('hireTypeSection');
 
+            // Payment dates: show only for stipends
             if (requestType === 'Additional Comp (Stipend)') {
                 paymentSection.classList.remove('hidden');
             } else {
                 paymentSection.classList.add('hidden');
+                // Uncheck all payment date checkboxes
+                document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
+            }
+
+            // Hours/Status: hide for stipends
+            if (requestType === 'Additional Comp (Stipend)') {
+                hoursSection.classList.add('hidden');
+                hoursSelect.required = false;
+                hoursSelect.value = '';
+            } else {
+                hoursSection.classList.remove('hidden');
+                hoursSelect.required = true;
+            }
+
+            // Hire Type: show only for Open Position
+            if (requestType === 'Open Position') {
+                hireTypeSection.classList.remove('hidden');
+            } else {
+                hireTypeSection.classList.add('hidden');
+                // Clear hire type selection
+                document.querySelectorAll('input[name="hire_type"]').forEach(r => r.checked = false);
             }
         }
 
@@ -865,6 +1012,12 @@
                 data.sped_reviewed = 'N/A';
             }
 
+            // Collect payment date checkboxes into comma-separated string
+            const checkedDates = Array.from(document.querySelectorAll('input[name="payment_date_cb"]:checked'))
+                .map(cb => cb.value);
+            data.payment_dates = checkedDates.join(', ');
+            delete data.payment_date_cb;
+
             // Handle "Other" position title
             if (data.position_title === '__other__') {
                 data.position_title = data.position_title_other || '';
@@ -890,6 +1043,15 @@
                     document.getElementById('spedCheckbox').checked = false;
                     document.getElementById('positionTitleOther').classList.add('hidden');
                     document.getElementById('positionTitleOther').required = false;
+                    document.getElementById('hoursStatusSection').classList.remove('hidden');
+                    document.getElementById('hoursStatusSelect').required = true;
+                    document.getElementById('hireTypeSection').classList.add('hidden');
+                    document.querySelectorAll('input[name="hire_type"]').forEach(r => r.checked = false);
+                    document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
+                    document.getElementById('employeeEmail').value = '';
+                    document.getElementById('schoolField').value = '';
+                    document.getElementById('linkedPositionId').value = '';
+                    document.getElementById('employeeLinkStatus').classList.add('hidden');
                     window.scrollTo({ top: document.getElementById('successMessage').offsetTop - 100, behavior: 'smooth' });
                 } else {
                     document.getElementById('errorText').textContent = result.error || 'Failed to submit request';
@@ -1104,6 +1266,14 @@
             document.getElementById('modalReportsTo').textContent = req.reports_to || '-';
             document.getElementById('modalSchoolYear').textContent = req.school_year || '-';
             document.getElementById('modalEmployee').textContent = req.employee_name || '-';
+            document.getElementById('modalHireType').textContent = req.hire_type || '-';
+            document.getElementById('modalHireTypeRow').classList.toggle('hidden', !req.hire_type);
+            document.getElementById('modalEmployeeEmail').textContent = req.employee_email || '-';
+            document.getElementById('modalEmployeeEmailRow').classList.toggle('hidden', !req.employee_email);
+            document.getElementById('modalSchool').textContent = req.school || '-';
+            document.getElementById('modalSchoolRow').classList.toggle('hidden', !req.school);
+            document.getElementById('modalLinkedPosition').textContent = req.linked_position_id || '-';
+            document.getElementById('modalLinkedPositionRow').classList.toggle('hidden', !req.linked_position_id);
             document.getElementById('modalJustification').textContent = req.justification || '-';
             document.getElementById('modalAmount').textContent = req.requested_amount || '-';
             document.getElementById('modalDuration').textContent = req.duration || '-';
@@ -1182,6 +1352,16 @@
             } else if (req.final_status === 'Approved' && p.can_create_position) {
                 createSection.classList.remove('hidden');
                 linkSection.classList.add('hidden');
+                // Update button text based on whether a linked position exists
+                const createBtnSpan = document.querySelector('#createPositionBtn span');
+                const createDesc = document.querySelector('#createPositionSection p');
+                if (req.linked_position_id && req.request_type === 'Open Position') {
+                    createBtnSpan.textContent = 'Update Position to Open';
+                    createDesc.textContent = 'This request is approved. Update the linked position to "Open" status:';
+                } else {
+                    createBtnSpan.textContent = 'Create Position';
+                    createDesc.textContent = 'This request is approved. Create a new position in the Position Control table:';
+                }
             } else {
                 createSection.classList.add('hidden');
                 linkSection.classList.add('hidden');
@@ -1274,7 +1454,12 @@
             const btn = document.getElementById('createPositionBtn');
             const loader = document.getElementById('createPositionLoader');
 
-            if (!confirm('Create a new position in the Position Control table for this approved request?')) return;
+            const req = allRequests.find(r => r.request_id === requestId);
+            const isUpdate = req && req.linked_position_id && req.request_type === 'Open Position';
+            const confirmMsg = isUpdate
+                ? 'Update the linked position to "Open" status in the Position Control table?'
+                : 'Create a new position in the Position Control table for this approved request?';
+            if (!confirm(confirmMsg)) return;
 
             btn.disabled = true;
             loader.classList.remove('hidden');
@@ -1287,7 +1472,8 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    alert(`Position created successfully!\nPosition ID: ${result.position_id}`);
+                    const actionMsg = result.action === 'updated' ? 'Position updated to Open' : 'Position created';
+                    alert(`${actionMsg} successfully!\nPosition ID: ${result.position_id}`);
                     closeModal();
                     loadAdminData();
                 } else {
