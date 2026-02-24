@@ -48,6 +48,7 @@ SMTP_PORT = 587
 TALENT_TEAM_EMAIL = 'talent@firstlineschools.org'
 HR_EMAIL = 'hr@firstlineschools.org'
 CPO_EMAIL = 'sshirey@firstlineschools.org'
+APP_URL = os.environ.get('APP_URL', 'https://position-control-form-965913991496.us-central1.run.app')
 
 # Role-based admin permissions
 # Each admin maps to the approval fields they can edit
@@ -146,6 +147,21 @@ REQUEST_TYPES = [
     'Supervisor Change',
 ]
 
+# Request types that require CEO and Finance approval
+CEO_FINANCE_REQUIRED_TYPES = ['New Position']
+
+# Position action config per request type
+# 'create' = INSERT new row, 'update' = UPDATE existing employee position
+# Types not listed here get no position button at all
+POSITION_ACTION_TYPES = {
+    'New Position': 'create',
+    'Open Position': 'create',        # backend already handles update-if-linked
+    'Temp Hire': 'create',
+    'Before/After School': 'create',
+    'Status Change': 'update',
+    'Title/Role Change': 'update',
+}
+
 # Hours/Status options
 HOURS_STATUS_OPTIONS = [
     'Full-Time (40 hrs)',
@@ -191,7 +207,7 @@ def ensure_employee_lookup_columns():
         full_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
         table_ref = bq_client.get_table(full_table)
         existing_fields = [f.name for f in table_ref.schema]
-        for col in ['employee_email', 'school', 'linked_position_id', 'candidate_email', 'candidate_position_id']:
+        for col in ['employee_email', 'school', 'linked_position_id', 'candidate_email', 'candidate_position_id', 'subject', 'grade_level']:
             if col not in existing_fields:
                 bq_client.query(f"ALTER TABLE `{full_table}` ADD COLUMN {col} STRING").result()
                 logger.info(f"Added {col} column to requests table")
@@ -259,7 +275,7 @@ def send_request_confirmation(req):
         <div style="padding: 30px; background-color: #f8f9fa;">
             <h2 style="color: #002f60;">Your request has been submitted!</h2>
             <p>Hi {req['requestor_name']},</p>
-            <p>We've received your position control request. It will be reviewed by the CEO, Finance, Talent, and HR teams.</p>
+            <p>We've received your position control request. It will be reviewed by the {'CEO, Finance, Talent, and HR teams' if req.get('request_type') in CEO_FINANCE_REQUIRED_TYPES else 'Talent and HR teams'}.</p>
 
             <div style="background-color: white; border-radius: 8px; padding: 20px; margin: 20px 0;">
                 <p style="margin: 5px 0;"><strong>Request ID:</strong> {req['request_id']}</p>
@@ -271,7 +287,7 @@ def send_request_confirmation(req):
 
             <p><strong>What's next?</strong></p>
             <ul>
-                <li>Your request will be reviewed by the CEO, Finance, Talent, and HR</li>
+                <li>Your request will be reviewed by {'CEO, Finance, Talent, and HR' if req.get('request_type') in CEO_FINANCE_REQUIRED_TYPES else 'Talent and HR'}</li>
                 <li>You can check the status of your request at any time on the portal</li>
                 <li>You'll be notified once a final decision is made</li>
             </ul>
@@ -321,7 +337,8 @@ def send_new_request_alert(req):
             </div>
 
             <div style="background-color: #fff3cd; border-radius: 8px; padding: 15px; margin: 20px 0;">
-                <p style="margin: 0;"><strong>Action Required:</strong> Please review and process this request in the Position Control Form admin portal.</p>
+                <p style="margin: 0 0 15px 0;"><strong>Action Required:</strong> Please review and approve or deny this request.</p>
+                <a href="{APP_URL}/?admin=true" style="display: inline-block; background-color: #e47727; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600;">Review in Admin Portal</a>
             </div>
         </div>
         <div style="background-color: #002f60; padding: 15px; text-align: center;">
@@ -329,7 +346,16 @@ def send_new_request_alert(req):
         </div>
     </div>
     """
-    send_email(TALENT_TEAM_EMAIL, subject, html_body, cc_emails=[HR_EMAIL, CPO_EMAIL])
+    cc_emails = [HR_EMAIL, CPO_EMAIL]
+
+    # If request type requires CEO/Finance approval, also notify those approvers
+    if req.get('request_type') in CEO_FINANCE_REQUIRED_TYPES:
+        for email, role_info in ADMIN_ROLES.items():
+            if any(f in role_info['can_approve'] for f in ['ceo_approval', 'finance_approval']):
+                if email not in cc_emails and email != TALENT_TEAM_EMAIL:
+                    cc_emails.append(email)
+
+    send_email(TALENT_TEAM_EMAIL, subject, html_body, cc_emails=cc_emails)
 
 
 # ============ BigQuery Functions ============
@@ -375,6 +401,8 @@ def row_to_dict(row):
         'linked_position_id': getattr(row, 'linked_position_id', '') or '',
         'candidate_email': getattr(row, 'candidate_email', '') or '',
         'candidate_position_id': getattr(row, 'candidate_position_id', '') or '',
+        'subject': getattr(row, 'subject', '') or '',
+        'grade_level': getattr(row, 'grade_level', '') or '',
     }
 
 
@@ -426,7 +454,8 @@ def append_request(request_data):
             final_status, offer_sent, offer_signed, admin_notes,
             position_id, updated_at, updated_by, is_archived, hire_type,
             employee_email, school, linked_position_id,
-            candidate_email, candidate_position_id
+            candidate_email, candidate_position_id,
+            subject, grade_level
         ) VALUES (
             @request_id, @submitted_at, @requestor_name, @requestor_email,
             @request_type, @hours_status, @position_title, @reports_to,
@@ -436,7 +465,8 @@ def append_request(request_data):
             @final_status, @offer_sent, @offer_signed, @admin_notes,
             @position_id, @updated_at, @updated_by, @is_archived, @hire_type,
             @employee_email, @school, @linked_position_id,
-            @candidate_email, @candidate_position_id
+            @candidate_email, @candidate_position_id,
+            @subject, @grade_level
         )
         """
 
@@ -478,6 +508,8 @@ def append_request(request_data):
                 bigquery.ScalarQueryParameter("linked_position_id", "STRING", request_data.get('linked_position_id', '')),
                 bigquery.ScalarQueryParameter("candidate_email", "STRING", request_data.get('candidate_email', '')),
                 bigquery.ScalarQueryParameter("candidate_position_id", "STRING", request_data.get('candidate_position_id', '')),
+                bigquery.ScalarQueryParameter("subject", "STRING", request_data.get('subject', '')),
+                bigquery.ScalarQueryParameter("grade_level", "STRING", request_data.get('grade_level', '')),
             ]
         )
 
@@ -698,8 +730,8 @@ def lookup_employee():
     try:
         pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
         query = f"""
-        SELECT position_id, school, job_category, job_title, first_name, last_name,
-               email_address, current_status, employee_number
+        SELECT position_id, school, job_category, job_title, subject, grade_level,
+               first_name, last_name, email_address, current_status, employee_number
         FROM `{pc_table}`
         WHERE LOWER(TRIM(email_address)) = LOWER(TRIM(@email))
           AND current_status IN ('Active', 'Filled')
@@ -747,6 +779,8 @@ def lookup_employee():
                 'last_name': last,
                 'employee_name': f"{first} {last}".strip(),
                 'current_status': row.current_status or '',
+                'subject': getattr(row, 'subject', '') or '',
+                'grade_level': getattr(row, 'grade_level', '') or '',
                 'reports_to': reports_to,
             })
 
@@ -792,6 +826,44 @@ def get_schools():
     except Exception as e:
         logger.error(f"Error fetching schools: {e}")
         return jsonify({'schools': []})
+
+
+@app.route('/api/subjects', methods=['GET'])
+def get_subjects():
+    """Get distinct subjects from the position_control table for the dropdown."""
+    try:
+        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
+        query = f"""
+        SELECT DISTINCT subject
+        FROM `{pc_table}`
+        WHERE subject IS NOT NULL AND TRIM(subject) != ''
+        ORDER BY subject
+        """
+        results = bq_client.query(query).result()
+        subjects = [row.subject for row in results]
+        return jsonify({'subjects': subjects})
+    except Exception as e:
+        logger.error(f"Error fetching subjects: {e}")
+        return jsonify({'subjects': []})
+
+
+@app.route('/api/grade-levels', methods=['GET'])
+def get_grade_levels():
+    """Get distinct grade levels from the position_control table for the dropdown."""
+    try:
+        pc_table = f"{PROJECT_ID}.{PC_DATASET_ID}.{PC_TABLE_ID}"
+        query = f"""
+        SELECT DISTINCT grade_level
+        FROM `{pc_table}`
+        WHERE grade_level IS NOT NULL AND TRIM(grade_level) != ''
+        ORDER BY grade_level
+        """
+        results = bq_client.query(query).result()
+        grade_levels = [row.grade_level for row in results]
+        return jsonify({'grade_levels': grade_levels})
+    except Exception as e:
+        logger.error(f"Error fetching grade levels: {e}")
+        return jsonify({'grade_levels': []})
 
 
 # ============ Auth Routes ============
@@ -854,6 +926,8 @@ def auth_status():
             'is_admin': is_admin,
             'user': user,
             'permissions': permissions,
+            'ceo_finance_required_types': CEO_FINANCE_REQUIRED_TYPES,
+            'position_action_types': POSITION_ACTION_TYPES,
         })
     return jsonify({'authenticated': False, 'is_admin': False, 'permissions': None})
 
@@ -910,6 +984,19 @@ def update_request_status(request_id):
         # Handle admin notes — all admins can add notes
         if 'admin_notes' in data:
             updates['admin_notes'] = data['admin_notes']
+
+        # Handle request detail fields — all non-viewer admins can edit
+        detail_fields = [
+            'request_type', 'hours_status', 'position_title', 'reports_to',
+            'school_year', 'employee_name', 'employee_email', 'school',
+            'hire_type', 'justification', 'requested_amount', 'duration',
+            'subject', 'grade_level'
+        ]
+        for field in detail_fields:
+            if field in data:
+                if perms['is_viewer']:
+                    return jsonify({'error': 'Viewers cannot edit request details'}), 403
+                updates[field] = data[field]
 
         # Always update audit fields
         updates['updated_at'] = datetime.now().isoformat()
@@ -1055,9 +1142,14 @@ def create_position(request_id):
         start_year = school_year.replace(' SY', '') if school_year else '25-26'
 
         linked_id = req.get('linked_position_id', '')
+        request_type = req.get('request_type', '')
+        action_type = POSITION_ACTION_TYPES.get(request_type)
+
+        if not action_type:
+            return jsonify({'error': f'No position action defined for request type "{request_type}"'}), 400
 
         # Path A: Linked position exists and request is Open Position — UPDATE existing row
-        if linked_id and req.get('request_type') == 'Open Position':
+        if linked_id and request_type == 'Open Position':
             position_id = linked_id
 
             pc_query = f"""
@@ -1082,7 +1174,73 @@ def create_position(request_id):
             bq_client.query(pc_query, job_config=pc_config).result()
             logger.info(f"Updated position {position_id} to Open from request {request_id}")
 
-        # Path B: No linked position — INSERT new row
+        # Path C: Update types (Status Change, Title/Role Change) — UPDATE existing employee position
+        elif action_type == 'update':
+            employee_email = req.get('employee_email', '')
+            if not employee_email:
+                return jsonify({'error': 'No employee email on this request; cannot look up position'}), 400
+
+            # Find the employee's position by email
+            lookup_query = f"""
+            SELECT position_id FROM `{pc_table}`
+            WHERE email_address = @employee_email
+            LIMIT 1
+            """
+            lookup_config = bigquery.QueryJobConfig(
+                query_parameters=[
+                    bigquery.ScalarQueryParameter("employee_email", "STRING", employee_email),
+                ]
+            )
+            lookup_results = list(bq_client.query(lookup_query, job_config=lookup_config).result())
+            if not lookup_results:
+                return jsonify({'error': f'No position found for employee {employee_email}'}), 404
+
+            position_id = lookup_results[0].position_id
+            note_suffix = f"Updated via PCF request {request_id}"
+
+            if request_type == 'Status Change':
+                new_status = req.get('hours_status', '')
+                pc_query = f"""
+                UPDATE `{pc_table}` SET
+                    current_status = @new_status,
+                    status_26_27 = @new_status,
+                    notes = CONCAT(COALESCE(notes, ''), '\\n{note_suffix}'),
+                    updated_at = CURRENT_TIMESTAMP(),
+                    updated_by = @updated_by
+                WHERE position_id = @position_id
+                """
+                pc_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("new_status", "STRING", new_status),
+                        bigquery.ScalarQueryParameter("updated_by", "STRING", user.get('email', 'system')),
+                        bigquery.ScalarQueryParameter("position_id", "STRING", position_id),
+                    ]
+                )
+            elif request_type == 'Title/Role Change':
+                pc_query = f"""
+                UPDATE `{pc_table}` SET
+                    job_title = @job_title,
+                    subject = @subject,
+                    grade_level = @grade_level,
+                    notes = CONCAT(COALESCE(notes, ''), '\\n{note_suffix}'),
+                    updated_at = CURRENT_TIMESTAMP(),
+                    updated_by = @updated_by
+                WHERE position_id = @position_id
+                """
+                pc_config = bigquery.QueryJobConfig(
+                    query_parameters=[
+                        bigquery.ScalarQueryParameter("job_title", "STRING", req.get('position_title', '')),
+                        bigquery.ScalarQueryParameter("subject", "STRING", req.get('subject', '')),
+                        bigquery.ScalarQueryParameter("grade_level", "STRING", req.get('grade_level', '')),
+                        bigquery.ScalarQueryParameter("updated_by", "STRING", user.get('email', 'system')),
+                        bigquery.ScalarQueryParameter("position_id", "STRING", position_id),
+                    ]
+                )
+
+            bq_client.query(pc_query, job_config=pc_config).result()
+            logger.info(f"Updated position {position_id} ({request_type}) from request {request_id}")
+
+        # Path B: Create types with no linked position — INSERT new row
         else:
             position_id = str(uuid.uuid4())
 
@@ -1121,7 +1279,10 @@ def create_position(request_id):
             'updated_by': user.get('email', 'system'),
         })
 
-        action = 'updated' if linked_id and req.get('request_type') == 'Open Position' else 'created'
+        if action_type == 'update' or (linked_id and request_type == 'Open Position'):
+            action = 'updated'
+        else:
+            action = 'created'
         cascade_request_id = None
 
         # Auto-create cascading Open Position request if candidate_position_id is set

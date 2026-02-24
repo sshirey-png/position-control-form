@@ -329,6 +329,22 @@
                                     class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
 
+                            <!-- Row 5b: Subject + Grade Level -->
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Subject</label>
+                                <select name="subject" id="subjectSelect"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Select subject...</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Grade Level</label>
+                                <select name="grade_level" id="gradeLevelSelect"
+                                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                                    <option value="">Select grade level...</option>
+                                </select>
+                            </div>
+
                             <!-- Row 6: Hours/Status + Reports To -->
                             <div id="hoursStatusSection">
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Hours/Status *</label>
@@ -340,7 +356,7 @@
                                     <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
                                 </select>
                                 <input type="text" id="hoursStatusReadonly" readonly
-                                    placeholder="Auto-filled from employee lookup"
+                                    placeholder="Select hours/status"
                                     class="hidden w-full px-4 py-2 border rounded-lg bg-gray-50">
                             </div>
                             <div>
@@ -361,12 +377,26 @@
 
                     <!-- Section 3: Justification & Details -->
                     <div>
-                        <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Justification & Details</h3>
+                        <h3 class="text-lg font-semibold text-fls-navy mb-4 pb-2 border-b">Justification / Additional Notes</h3>
                         <div class="space-y-4">
                             <div>
-                                <label class="block text-sm font-medium text-gray-700 mb-1">Justification *</label>
-                                <textarea name="justification" required rows="4"
-                                    placeholder="Please provide a detailed justification for this request..."
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Justification / Additional Notes *</label>
+                                <div class="flex gap-4 mb-2">
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="justification_type" value="custom" checked
+                                            onchange="toggleJustification()"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">Provide details</span>
+                                    </label>
+                                    <label class="flex items-center gap-2 cursor-pointer">
+                                        <input type="radio" name="justification_type" value="na"
+                                            onchange="toggleJustification()"
+                                            class="w-4 h-4 text-fls-orange focus:ring-fls-orange">
+                                        <span class="text-sm">N/A</span>
+                                    </label>
+                                </div>
+                                <textarea name="justification" id="justificationText" required rows="4"
+                                    placeholder="Please provide justification or additional notes for this request..."
                                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange"></textarea>
                             </div>
                             <div id="spedReviewSection" class="hidden">
@@ -628,8 +658,9 @@
             <div class="p-6">
                 <input type="hidden" id="editRequestId">
 
-                <!-- Request Info (Read-only) -->
+                <!-- Request Info -->
                 <div class="grid grid-cols-2 gap-4 mb-6 text-sm">
+                    <!-- Read-only fields -->
                     <div>
                         <span class="text-gray-500">Request ID:</span>
                         <span id="modalRequestId" class="font-mono font-semibold"></span>
@@ -646,41 +677,92 @@
                         <span class="text-gray-500">Email:</span>
                         <span id="modalRequestorEmail"></span>
                     </div>
+                    <!-- Editable detail fields -->
                     <div>
-                        <span class="text-gray-500">Type:</span>
-                        <span id="modalType"></span>
+                        <label class="block text-gray-500 mb-1">Type:</label>
+                        <select id="editRequestType"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="Open Position">Open Position</option>
+                            <option value="New Position">New Position</option>
+                            <option value="Additional Comp (Stipend)">Additional Comp (Stipend)</option>
+                            <option value="Status Change">Status Change</option>
+                            <option value="Title/Role Change">Title/Role Change</option>
+                            <option value="Salary Adjustment">Salary Adjustment</option>
+                            <option value="Temp Hire">Temp Hire</option>
+                            <option value="Before/After School">Before/After School</option>
+                            <option value="Supervisor Change">Supervisor Change</option>
+                        </select>
                     </div>
                     <div>
-                        <span class="text-gray-500">Hours:</span>
-                        <span id="modalHours"></span>
+                        <label class="block text-gray-500 mb-1">Hours:</label>
+                        <select id="editHoursStatus"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                            <option value="Full-Time (40 hrs)">Full-Time (40 hrs)</option>
+                            <option value="Part-Time (29 hrs or less)">Part-Time (29 hrs or less)</option>
+                            <option value="Seasonal Temp (6mo or less)">Seasonal Temp (6mo or less)</option>
+                        </select>
                     </div>
                     <div>
-                        <span class="text-gray-500">Position:</span>
-                        <span id="modalPosition" class="font-semibold"></span>
+                        <label class="block text-gray-500 mb-1">Position:</label>
+                        <select id="editPositionTitle"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">Loading titles...</option>
+                        </select>
                     </div>
                     <div>
-                        <span class="text-gray-500">Reports To:</span>
-                        <span id="modalReportsTo"></span>
+                        <label class="block text-gray-500 mb-1">Reports To:</label>
+                        <input type="text" id="editReportsTo"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                     </div>
                     <div>
-                        <span class="text-gray-500">School Year:</span>
-                        <span id="modalSchoolYear"></span>
+                        <label class="block text-gray-500 mb-1">School Year:</label>
+                        <select id="editSchoolYear"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                            <option value="25-26 SY">25-26 SY</option>
+                            <option value="26-27 SY">26-27 SY</option>
+                        </select>
                     </div>
                     <div>
-                        <span class="text-gray-500">Employee:</span>
-                        <span id="modalEmployee"></span>
+                        <label class="block text-gray-500 mb-1">Employee:</label>
+                        <input type="text" id="editEmployeeName"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                     </div>
                     <div id="modalHireTypeRow">
-                        <span class="text-gray-500">Action Requested:</span>
-                        <span id="modalHireType"></span>
+                        <label class="block text-gray-500 mb-1">Action Requested:</label>
+                        <select id="editHireType"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                            <option value="Post Position">Post Position</option>
+                            <option value="Promote or Transfer Internal Candidate">Promote or Transfer Internal Candidate</option>
+                        </select>
                     </div>
                     <div id="modalEmployeeEmailRow">
-                        <span class="text-gray-500">Employee Email:</span>
-                        <span id="modalEmployeeEmail"></span>
+                        <label class="block text-gray-500 mb-1">Employee Email:</label>
+                        <input type="email" id="editEmployeeEmail"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                     </div>
                     <div id="modalSchoolRow">
-                        <span class="text-gray-500">School:</span>
-                        <span id="modalSchool"></span>
+                        <label class="block text-gray-500 mb-1">School:</label>
+                        <select id="editSchool"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-500 mb-1">Subject:</label>
+                        <select id="editSubject"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-gray-500 mb-1">Grade Level:</label>
+                        <select id="editGradeLevel"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
+                            <option value="">-</option>
+                        </select>
                     </div>
                     <div id="modalLinkedPositionRow">
                         <span class="text-gray-500">Linked Position:</span>
@@ -700,16 +782,19 @@
                         </div>
                     </div>
                     <div class="col-span-2">
-                        <span class="text-gray-500">Justification:</span>
-                        <p id="modalJustification" class="text-gray-700 mt-1 bg-gray-50 p-3 rounded-lg"></p>
+                        <label class="block text-gray-500 mb-1">Justification / Notes:</label>
+                        <textarea id="editJustification" rows="3"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange"></textarea>
                     </div>
                     <div id="modalAmountRow">
-                        <span class="text-gray-500">Requested Amount:</span>
-                        <span id="modalAmount"></span>
+                        <label class="block text-gray-500 mb-1">Requested Amount:</label>
+                        <input type="text" id="editRequestedAmount"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                     </div>
                     <div id="modalDurationRow">
-                        <span class="text-gray-500">Duration:</span>
-                        <span id="modalDuration"></span>
+                        <label class="block text-gray-500 mb-1">Duration:</label>
+                        <input type="text" id="editDuration"
+                            class="w-full px-3 py-1.5 border rounded-lg text-sm focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
                     </div>
                 </div>
 
@@ -719,7 +804,7 @@
                 <div class="space-y-4">
                     <h4 class="text-md font-semibold text-fls-navy">Approvals</h4>
                     <div class="grid grid-cols-2 gap-4">
-                        <div>
+                        <div id="ceoApprovalRow">
                             <label class="block text-sm font-medium text-gray-700 mb-1">CEO Approval</label>
                             <select id="editCeoApproval"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
@@ -728,7 +813,7 @@
                                 <option value="Denied">Denied</option>
                             </select>
                         </div>
-                        <div>
+                        <div id="financeApprovalRow">
                             <label class="block text-sm font-medium text-gray-700 mb-1">Finance Approval</label>
                             <select id="editFinanceApproval"
                                 class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-fls-orange focus:border-fls-orange">
@@ -858,12 +943,16 @@
         let currentSort = { field: 'submitted_at', direction: 'desc' };
         let isAdmin = false;
         let userPermissions = null;
+        let ceoFinanceRequiredTypes = [];
+        let positionActionTypes = {};
 
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', async () => {
             await checkAuthStatus();
             await loadJobTitles();
             await loadSchools();
+            await loadSubjects();
+            await loadGradeLevels();
 
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('admin') === 'true' && isAdmin) {
@@ -878,12 +967,15 @@
                 const data = await response.json();
                 const select = document.getElementById('positionTitleSelect');
                 select.innerHTML = '<option value="">Select position title...</option>';
+                const editSelect = document.getElementById('editPositionTitle');
+                editSelect.innerHTML = '<option value="">-</option>';
 
                 data.titles.forEach(title => {
                     const option = document.createElement('option');
                     option.value = title;
                     option.textContent = title;
                     select.appendChild(option);
+                    editSelect.appendChild(option.cloneNode(true));
                 });
 
                 // Add "Other" option at the end
@@ -905,15 +997,72 @@
                 const data = await response.json();
                 const select = document.getElementById('schoolSelect');
                 select.innerHTML = '<option value="">Select school...</option>';
+                const editSelect = document.getElementById('editSchool');
+                editSelect.innerHTML = '<option value="">-</option>';
 
                 data.schools.forEach(school => {
                     const option = document.createElement('option');
                     option.value = school;
                     option.textContent = school;
                     select.appendChild(option);
+                    editSelect.appendChild(option.cloneNode(true));
                 });
             } catch (error) {
                 console.error('Failed to load schools:', error);
+            }
+        }
+
+        async function loadSubjects() {
+            try {
+                const response = await fetch('/api/subjects');
+                const data = await response.json();
+                const select = document.getElementById('subjectSelect');
+                select.innerHTML = '<option value="">Select subject...</option>';
+                const editSelect = document.getElementById('editSubject');
+                editSelect.innerHTML = '<option value="">-</option>';
+                data.subjects.forEach(s => {
+                    const option = document.createElement('option');
+                    option.value = s;
+                    option.textContent = s;
+                    select.appendChild(option);
+                    editSelect.appendChild(option.cloneNode(true));
+                });
+            } catch (error) {
+                console.error('Failed to load subjects:', error);
+            }
+        }
+
+        async function loadGradeLevels() {
+            try {
+                const response = await fetch('/api/grade-levels');
+                const data = await response.json();
+                const select = document.getElementById('gradeLevelSelect');
+                select.innerHTML = '<option value="">Select grade level...</option>';
+                const editSelect = document.getElementById('editGradeLevel');
+                editSelect.innerHTML = '<option value="">-</option>';
+                data.grade_levels.forEach(g => {
+                    const option = document.createElement('option');
+                    option.value = g;
+                    option.textContent = g;
+                    select.appendChild(option);
+                    editSelect.appendChild(option.cloneNode(true));
+                });
+            } catch (error) {
+                console.error('Failed to load grade levels:', error);
+            }
+        }
+
+        function toggleJustification() {
+            const selected = document.querySelector('input[name="justification_type"]:checked').value;
+            const textarea = document.getElementById('justificationText');
+            if (selected === 'na') {
+                textarea.value = 'N/A';
+                textarea.readOnly = true;
+                textarea.classList.add('bg-gray-50');
+            } else {
+                if (textarea.value === 'N/A') textarea.value = '';
+                textarea.readOnly = false;
+                textarea.classList.remove('bg-gray-50');
             }
         }
 
@@ -945,6 +1094,8 @@
                     document.getElementById('userName').textContent = data.user.name || data.user.email;
                     isAdmin = data.is_admin;
                     userPermissions = data.permissions;
+                    ceoFinanceRequiredTypes = data.ceo_finance_required_types || [];
+                    positionActionTypes = data.position_action_types || {};
 
                     // Auto-fill requestor info from Google session
                     const nameField = document.getElementById('requestorName');
@@ -1057,6 +1208,22 @@
                         document.getElementById('positionTitleOther').required = false;
                     }
 
+                    // Auto-fill subject and grade level
+                    if (data.subject) {
+                        const subjectSelect = document.getElementById('subjectSelect');
+                        const subjectMatch = Array.from(subjectSelect.options).find(
+                            o => o.value.toLowerCase() === data.subject.toLowerCase()
+                        );
+                        if (subjectMatch) subjectSelect.value = subjectMatch.value;
+                    }
+                    if (data.grade_level) {
+                        const gradeSelect = document.getElementById('gradeLevelSelect');
+                        const gradeMatch = Array.from(gradeSelect.options).find(
+                            o => o.value.toLowerCase() === data.grade_level.toLowerCase()
+                        );
+                        if (gradeMatch) gradeSelect.value = gradeMatch.value;
+                    }
+
                     // Show linked indicator
                     statusText.textContent = `Linked to position ${data.position_id} — ${data.employee_name}, ${data.job_title} at ${data.school}`;
                     statusEl.classList.remove('hidden');
@@ -1155,13 +1322,28 @@
                 document.querySelectorAll('#paymentDatesSection input[type="checkbox"]').forEach(cb => cb.checked = false);
             }
 
-            // --- Action Requested: show for Open Position and New Position ---
+            // --- Action Requested: show for Open Position, New Position, and Temp Hire ---
             if (requestType === 'Open Position' || requestType === 'New Position') {
                 hireTypeSection.classList.remove('hidden');
-                hireTypeRadios.forEach(r => r.required = true);
+                hireTypeRadios.forEach(r => { r.required = true; r.parentElement.classList.remove('hidden'); });
+            } else if (requestType === 'Temp Hire') {
+                // Show Action Requested but only Post Position (auto-select it)
+                hireTypeSection.classList.remove('hidden');
+                hireTypeRadios.forEach(r => {
+                    if (r.value === 'Post Position') {
+                        r.checked = true;
+                        r.required = true;
+                        r.parentElement.classList.remove('hidden');
+                    } else {
+                        r.checked = false;
+                        r.required = false;
+                        r.parentElement.classList.add('hidden');
+                    }
+                });
+                handleHireTypeChange();
             } else {
                 hireTypeSection.classList.add('hidden');
-                hireTypeRadios.forEach(r => { r.checked = false; r.required = false; });
+                hireTypeRadios.forEach(r => { r.checked = false; r.required = false; r.parentElement.classList.remove('hidden'); });
                 handleHireTypeChange();
             }
 
@@ -1173,8 +1355,8 @@
                 emailLabel.textContent = 'Departing Employee Email *';
                 emailHint.textContent = 'Enter the email of the employee leaving this position';
                 emailInput.required = true;
-            } else if (requestType === 'New Position') {
-                // Hide: no existing employee for a brand-new position
+            } else if (requestType === 'New Position' || requestType === 'Temp Hire') {
+                // Hide: no existing employee for a new/temp position
                 employeeEmailSection.classList.add('hidden');
                 employeeNameSection.classList.add('hidden');
                 emailInput.required = false;
@@ -1523,11 +1705,12 @@
                 const archivedClass = req.is_archived ? 'opacity-50' : '';
                 const archivedBadge = req.is_archived ? ' <span class="ml-1 px-1.5 py-0.5 bg-gray-200 text-gray-500 text-xs rounded">Archived</span>' : '';
 
+                const needsCeoFinance = ceoFinanceRequiredTypes.includes(req.request_type);
                 const approvals = `
-                    <span class="inline-flex items-center gap-1 text-sm" title="CEO / Finance / Talent / HR">
-                        <span class="font-medium text-xs text-gray-400">C</span>${getApprovalIcon(req.ceo_approval)}
-                        <span class="font-medium text-xs text-gray-400 ml-1">F</span>${getApprovalIcon(req.finance_approval)}
-                        <span class="font-medium text-xs text-gray-400 ml-1">T</span>${getApprovalIcon(req.talent_approval)}
+                    <span class="inline-flex items-center gap-1 text-sm" title="${needsCeoFinance ? 'CEO / Finance / ' : ''}Talent / HR">
+                        ${needsCeoFinance ? `<span class="font-medium text-xs text-gray-400">C</span>${getApprovalIcon(req.ceo_approval)}
+                        <span class="font-medium text-xs text-gray-400 ml-1">F</span>${getApprovalIcon(req.finance_approval)}` : ''}
+                        <span class="font-medium text-xs text-gray-400${needsCeoFinance ? ' ml-1' : ''}">T</span>${getApprovalIcon(req.talent_approval)}
                         <span class="font-medium text-xs text-gray-400 ml-1">H</span>${getApprovalIcon(req.hr_approval)}
                     </span>
                 `;
@@ -1562,22 +1745,61 @@
             if (!req) return;
 
             document.getElementById('editRequestId').value = requestId;
+            // Read-only fields
             document.getElementById('modalRequestId').textContent = requestId;
             document.getElementById('modalSubmittedAt').textContent = req.submitted_at ? new Date(req.submitted_at).toLocaleString() : '-';
             document.getElementById('modalRequestor').textContent = req.requestor_name;
             document.getElementById('modalRequestorEmail').textContent = req.requestor_email;
-            document.getElementById('modalType').textContent = req.request_type;
-            document.getElementById('modalHours').textContent = req.hours_status;
-            document.getElementById('modalPosition').textContent = req.position_title;
-            document.getElementById('modalReportsTo').textContent = req.reports_to || '-';
-            document.getElementById('modalSchoolYear').textContent = req.school_year || '-';
-            document.getElementById('modalEmployee').textContent = req.employee_name || '-';
-            document.getElementById('modalHireType').textContent = req.hire_type || '-';
-            document.getElementById('modalHireTypeRow').classList.toggle('hidden', !req.hire_type);
-            document.getElementById('modalEmployeeEmail').textContent = req.employee_email || '-';
-            document.getElementById('modalEmployeeEmailRow').classList.toggle('hidden', !req.employee_email);
-            document.getElementById('modalSchool').textContent = req.school || '-';
-            document.getElementById('modalSchoolRow').classList.toggle('hidden', !req.school);
+
+            // Editable detail fields
+            document.getElementById('editRequestType').value = req.request_type || '';
+            document.getElementById('editHoursStatus').value = req.hours_status || '';
+            // For position title, ensure the value exists as an option; if not, add it
+            const posSelect = document.getElementById('editPositionTitle');
+            if (req.position_title && !Array.from(posSelect.options).some(o => o.value === req.position_title)) {
+                const customOpt = document.createElement('option');
+                customOpt.value = req.position_title;
+                customOpt.textContent = req.position_title;
+                posSelect.appendChild(customOpt);
+            }
+            posSelect.value = req.position_title || '';
+            document.getElementById('editReportsTo').value = req.reports_to || '';
+            document.getElementById('editSchoolYear').value = req.school_year || '';
+            document.getElementById('editEmployeeName').value = req.employee_name || '';
+            document.getElementById('editHireType').value = req.hire_type || '';
+            document.getElementById('editEmployeeEmail').value = req.employee_email || '';
+            // For school, ensure the value exists as an option
+            const schoolSelect = document.getElementById('editSchool');
+            if (req.school && !Array.from(schoolSelect.options).some(o => o.value === req.school)) {
+                const customOpt = document.createElement('option');
+                customOpt.value = req.school;
+                customOpt.textContent = req.school;
+                schoolSelect.appendChild(customOpt);
+            }
+            schoolSelect.value = req.school || '';
+            // For subject, ensure the value exists as an option
+            const subjSelect = document.getElementById('editSubject');
+            if (req.subject && !Array.from(subjSelect.options).some(o => o.value === req.subject)) {
+                const customOpt = document.createElement('option');
+                customOpt.value = req.subject;
+                customOpt.textContent = req.subject;
+                subjSelect.appendChild(customOpt);
+            }
+            subjSelect.value = req.subject || '';
+            // For grade level, ensure the value exists as an option
+            const gradeSelect = document.getElementById('editGradeLevel');
+            if (req.grade_level && !Array.from(gradeSelect.options).some(o => o.value === req.grade_level)) {
+                const customOpt = document.createElement('option');
+                customOpt.value = req.grade_level;
+                customOpt.textContent = req.grade_level;
+                gradeSelect.appendChild(customOpt);
+            }
+            gradeSelect.value = req.grade_level || '';
+            document.getElementById('editJustification').value = req.justification || '';
+            document.getElementById('editRequestedAmount').value = req.requested_amount || '';
+            document.getElementById('editDuration').value = req.duration || '';
+
+            // Read-only link/candidate fields
             document.getElementById('modalLinkedPosition').textContent = req.linked_position_id || '-';
             document.getElementById('modalLinkedPositionRow').classList.toggle('hidden', !req.linked_position_id);
             document.getElementById('modalCandidateEmail').textContent = req.candidate_email || '-';
@@ -1585,13 +1807,10 @@
             document.getElementById('modalCandidatePosition').textContent = req.candidate_position_id || '-';
             document.getElementById('modalCandidatePositionRow').classList.toggle('hidden', !req.candidate_position_id);
             document.getElementById('modalCascadeNote').classList.toggle('hidden', !req.candidate_position_id || !!req.position_id);
-            document.getElementById('modalJustification').textContent = req.justification || '-';
-            document.getElementById('modalAmount').textContent = req.requested_amount || '-';
-            document.getElementById('modalDuration').textContent = req.duration || '-';
             document.getElementById('modalLastUpdated').textContent = req.updated_at ? new Date(req.updated_at).toLocaleString() : '-';
             document.getElementById('modalUpdatedBy').textContent = req.updated_by || '-';
 
-            // Editable fields
+            // Approval fields
             document.getElementById('editCeoApproval').value = req.ceo_approval || 'Pending';
             document.getElementById('editFinanceApproval').value = req.finance_approval || 'Pending';
             document.getElementById('editTalentApproval').value = req.talent_approval || 'Pending';
@@ -1600,6 +1819,10 @@
             document.getElementById('editOfferSent').value = req.offer_sent || '';
             document.getElementById('editOfferSigned').value = req.offer_signed || '';
             document.getElementById('editAdminNotes').value = req.admin_notes || '';
+
+            // CEO and Finance only in approval chain for New Position
+            updateCeoFinanceVisibility();
+            document.getElementById('editRequestType').onchange = updateCeoFinanceVisibility;
 
             // Apply role-based permissions to form fields
             const p = userPermissions || {};
@@ -1643,6 +1866,21 @@
             notesEl.classList.toggle('opacity-50', !p.can_edit_notes);
             notesEl.classList.toggle('cursor-not-allowed', !p.can_edit_notes);
 
+            // Request detail fields — viewers can't edit
+            const canEditDetails = !p.is_viewer;
+            const detailFields = [
+                'editRequestType', 'editHoursStatus', 'editPositionTitle', 'editReportsTo',
+                'editSchoolYear', 'editEmployeeName', 'editHireType', 'editEmployeeEmail',
+                'editSchool', 'editSubject', 'editGradeLevel', 'editJustification',
+                'editRequestedAmount', 'editDuration'
+            ];
+            detailFields.forEach(id => {
+                const el = document.getElementById(id);
+                el.disabled = !canEditDetails;
+                el.classList.toggle('opacity-50', !canEditDetails);
+                el.classList.toggle('cursor-not-allowed', !canEditDetails);
+            });
+
             // Delete button — super admin only
             document.getElementById('deleteBtn').classList.toggle('hidden', !p.can_delete);
 
@@ -1652,23 +1890,26 @@
             // Save button — hidden for viewers (nothing to save)
             document.getElementById('saveBtn').classList.toggle('hidden', !!p.is_viewer);
 
-            // Show/hide create position button
+            // Show/hide create position button based on request type config
             const createSection = document.getElementById('createPositionSection');
             const linkSection = document.getElementById('positionLinkSection');
+            const actionType = positionActionTypes[req.request_type];
 
             if (req.position_id) {
                 createSection.classList.add('hidden');
                 linkSection.classList.remove('hidden');
                 document.getElementById('positionIdLink').textContent = req.position_id;
-            } else if (req.final_status === 'Approved' && p.can_create_position) {
+            } else if (req.final_status === 'Approved' && p.can_create_position && actionType) {
                 createSection.classList.remove('hidden');
                 linkSection.classList.add('hidden');
-                // Update button text based on whether a linked position exists
                 const createBtnSpan = document.querySelector('#createPositionBtn span');
                 const createDesc = document.querySelector('#createPositionSection p');
                 if (req.linked_position_id && req.request_type === 'Open Position') {
                     createBtnSpan.textContent = 'Update Position to Open';
                     createDesc.textContent = 'This request is approved. Update the linked position to "Open" status:';
+                } else if (actionType === 'update') {
+                    createBtnSpan.textContent = 'Update Position';
+                    createDesc.textContent = 'This request is approved. Update the employee\'s position in the Position Control table:';
                 } else {
                     createBtnSpan.textContent = 'Create Position';
                     createDesc.textContent = 'This request is approved. Create a new position in the Position Control table:';
@@ -1692,9 +1933,21 @@
             document.getElementById('editModal').classList.add('flex');
         }
 
+        function requiresCeoFinance() {
+            return ceoFinanceRequiredTypes.includes(document.getElementById('editRequestType').value);
+        }
+
+        function updateCeoFinanceVisibility() {
+            const show = requiresCeoFinance();
+            document.getElementById('ceoApprovalRow').classList.toggle('hidden', !show);
+            document.getElementById('financeApprovalRow').classList.toggle('hidden', !show);
+            autoCalculateFinalStatus();
+        }
+
         function autoCalculateFinalStatus() {
-            const ceo = document.getElementById('editCeoApproval').value;
-            const finance = document.getElementById('editFinanceApproval').value;
+            const needsCeoFinance = requiresCeoFinance();
+            const ceo = needsCeoFinance ? document.getElementById('editCeoApproval').value : 'Approved';
+            const finance = needsCeoFinance ? document.getElementById('editFinanceApproval').value : 'Approved';
             const talent = document.getElementById('editTalentApproval').value;
             const hr = document.getElementById('editHrApproval').value;
 
@@ -1735,8 +1988,25 @@
                 updates.offer_signed = document.getElementById('editOfferSigned').value;
             }
 
-            // All admins can edit notes
+            // All non-viewer admins can edit notes and request details
             updates.admin_notes = document.getElementById('editAdminNotes').value;
+
+            if (!p.is_viewer) {
+                updates.request_type = document.getElementById('editRequestType').value;
+                updates.hours_status = document.getElementById('editHoursStatus').value;
+                updates.position_title = document.getElementById('editPositionTitle').value;
+                updates.reports_to = document.getElementById('editReportsTo').value;
+                updates.school_year = document.getElementById('editSchoolYear').value;
+                updates.employee_name = document.getElementById('editEmployeeName').value;
+                updates.employee_email = document.getElementById('editEmployeeEmail').value;
+                updates.school = document.getElementById('editSchool').value;
+                updates.hire_type = document.getElementById('editHireType').value;
+                updates.justification = document.getElementById('editJustification').value;
+                updates.requested_amount = document.getElementById('editRequestedAmount').value;
+                updates.duration = document.getElementById('editDuration').value;
+                updates.subject = document.getElementById('editSubject').value;
+                updates.grade_level = document.getElementById('editGradeLevel').value;
+            }
 
             try {
                 const response = await fetch(`/api/admin/requests/${requestId}`, {
@@ -1766,10 +2036,16 @@
             const loader = document.getElementById('createPositionLoader');
 
             const req = allRequests.find(r => r.request_id === requestId);
-            const isUpdate = req && req.linked_position_id && req.request_type === 'Open Position';
-            const confirmMsg = isUpdate
-                ? 'Update the linked position to "Open" status in the Position Control table?'
-                : 'Create a new position in the Position Control table for this approved request?';
+            const actionType = req ? positionActionTypes[req.request_type] : 'create';
+            const isLinkedOpen = req && req.linked_position_id && req.request_type === 'Open Position';
+            let confirmMsg;
+            if (isLinkedOpen) {
+                confirmMsg = 'Update the linked position to "Open" status in the Position Control table?';
+            } else if (actionType === 'update') {
+                confirmMsg = `Update the employee's position in the Position Control table for this approved ${req.request_type} request?`;
+            } else {
+                confirmMsg = 'Create a new position in the Position Control table for this approved request?';
+            }
             if (!confirm(confirmMsg)) return;
 
             btn.disabled = true;
@@ -1783,7 +2059,7 @@
                 const result = await response.json();
 
                 if (response.ok && result.success) {
-                    const actionMsg = result.action === 'updated' ? 'Position updated to Open' : 'Position created';
+                    const actionMsg = result.action === 'updated' ? 'Position updated successfully' : 'Position created';
                     let msg = `${actionMsg} successfully!\nPosition ID: ${result.position_id}`;
                     if (result.cascade_request_id) {
                         msg += `\n\nA cascading Open Position request (${result.cascade_request_id}) has been auto-created for the candidate's previous seat.`;
