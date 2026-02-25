@@ -47,83 +47,102 @@ SMTP_SERVER = 'smtp.gmail.com'
 SMTP_PORT = 587
 TALENT_TEAM_EMAIL = 'talent@firstlineschools.org'
 HR_EMAIL = 'hr@firstlineschools.org'
-CPO_EMAIL = 'sshirey@firstlineschools.org'
 APP_URL = os.environ.get('APP_URL', 'https://position-control-form-965913991496.us-central1.run.app')
 
-# Role-based admin permissions
-# Each admin maps to the approval fields they can edit
-# 'super_admin' can edit all fields
-ADMIN_ROLES = {
-    'sshirey@firstlineschools.org': {                # CPO — super admin
+# Role-based admin permissions — by job title (from BigQuery staff_master_list)
+# Maps job titles to permission sets. No hardcoded emails.
+TITLE_ROLES = {
+    'Chief People Officer': {
         'role': 'super_admin',
-        'title': 'Chief People Officer',
         'can_approve': ['ceo_approval', 'finance_approval', 'talent_approval', 'hr_approval'],
         'can_edit_final': True,
         'can_create_position': True,
     },
-    'spence@firstlineschools.org': {                 # CEO
+    'Chief Executive Officer': {
         'role': 'ceo',
-        'title': 'Chief Executive Officer',
         'can_approve': ['ceo_approval'],
         'can_edit_final': True,
         'can_create_position': False,
     },
-    'rcain@firstlineschools.org': {                  # COO — Finance
+    'Chief Operating Officer': {
         'role': 'finance',
-        'title': 'Chief Operating Officer',
         'can_approve': ['finance_approval'],
         'can_edit_final': False,
         'can_create_position': False,
     },
-    'lhunter@firstlineschools.org': {                # Finance Manager
+    'Manager Finance': {
         'role': 'finance',
-        'title': 'Finance Manager',
         'can_approve': ['finance_approval'],
         'can_edit_final': False,
         'can_create_position': False,
     },
-    'aleibfritz@firstlineschools.org': {             # Payroll Manager — view only
+    'Manager Payroll': {
         'role': 'viewer',
-        'title': 'Payroll Manager',
         'can_approve': [],
         'can_edit_final': False,
         'can_create_position': False,
     },
-    'brichardson@firstlineschools.org': {            # CHRO — HR + Talent
+    'Chief HR Officer': {
         'role': 'hr',
-        'title': 'Chief HR Officer',
         'can_approve': ['hr_approval', 'talent_approval'],
         'can_edit_final': True,
         'can_create_position': True,
     },
-    'mtoussaint@firstlineschools.org': {             # HR Manager
+    'Manager, HR': {
         'role': 'hr',
-        'title': 'HR Manager',
         'can_approve': ['hr_approval'],
         'can_edit_final': False,
         'can_create_position': False,
     },
-    'csmith@firstlineschools.org': {                 # Talent — view only
+    'Talent Ops Manager': {
         'role': 'viewer',
-        'title': 'Talent',
+        'can_approve': [],
+        'can_edit_final': False,
+        'can_create_position': False,
+    },
+    'Recruitment Manager': {
+        'role': 'viewer',
         'can_approve': [],
         'can_edit_final': False,
         'can_create_position': False,
     },
 }
 
-ADMIN_USERS = list(ADMIN_ROLES.keys())
+
+def lookup_job_title(email):
+    """Look up a user's job title from BigQuery staff_master_list."""
+    if not email:
+        return ''
+    try:
+        query = f"""
+        SELECT Job_Title
+        FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+        WHERE LOWER(Email_Address) = @email
+        AND Employment_Status IN ('Active', 'Leave of absence')
+        LIMIT 1
+        """
+        job_config = bigquery.QueryJobConfig(
+            query_parameters=[bigquery.ScalarQueryParameter("email", "STRING", email.lower())]
+        )
+        results = list(bq_client.query(query, job_config=job_config).result())
+        if results:
+            return results[0].Job_Title or ''
+    except Exception as e:
+        logger.error(f"Error looking up job title for {email}: {e}")
+    return ''
 
 
 def get_user_permissions(email):
-    """Get the permissions for an admin user."""
-    email = (email or '').lower()
-    role_info = ADMIN_ROLES.get(email)
+    """Get the permissions for a user based on their job title from BigQuery."""
+    job_title = session.get('user', {}).get('job_title', '')
+    if not job_title:
+        job_title = lookup_job_title(email)
+    role_info = TITLE_ROLES.get(job_title)
     if not role_info:
         return None
     return {
         'role': role_info['role'],
-        'title': role_info['title'],
+        'title': job_title,
         'can_approve': role_info['can_approve'],
         'can_edit_final': role_info['can_edit_final'],
         'can_create_position': role_info['can_create_position'],
@@ -133,6 +152,14 @@ def get_user_permissions(email):
         'can_delete': role_info['role'] == 'super_admin',
         'is_viewer': role_info['role'] == 'viewer',
     }
+
+
+def is_admin_user(email):
+    """Check if user has admin access based on job title."""
+    job_title = session.get('user', {}).get('job_title', '')
+    if not job_title:
+        job_title = lookup_job_title(email)
+    return job_title in TITLE_ROLES
 
 # Request type options
 REQUEST_TYPES = [
@@ -346,14 +373,30 @@ def send_new_request_alert(req):
         </div>
     </div>
     """
-    cc_emails = [HR_EMAIL, CPO_EMAIL]
+    cc_emails = [HR_EMAIL]
 
     # If request type requires CEO/Finance approval, also notify those approvers
+    # Look up emails for title-based roles that have CEO/Finance approval rights
     if req.get('request_type') in CEO_FINANCE_REQUIRED_TYPES:
-        for email, role_info in ADMIN_ROLES.items():
+        for title, role_info in TITLE_ROLES.items():
             if any(f in role_info['can_approve'] for f in ['ceo_approval', 'finance_approval']):
-                if email not in cc_emails and email != TALENT_TEAM_EMAIL:
-                    cc_emails.append(email)
+                # Look up the email for this title from BigQuery
+                try:
+                    q = f"""
+                    SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+                    WHERE Job_Title = @title AND Employment_Status IN ('Active', 'Leave of absence')
+                    LIMIT 1
+                    """
+                    jc = bigquery.QueryJobConfig(
+                        query_parameters=[bigquery.ScalarQueryParameter("title", "STRING", title)]
+                    )
+                    rows = list(bq_client.query(q, job_config=jc).result())
+                    if rows and rows[0].Email_Address:
+                        approver_email = rows[0].Email_Address.lower()
+                        if approver_email not in cc_emails and approver_email != TALENT_TEAM_EMAIL:
+                            cc_emails.append(approver_email)
+                except Exception as e:
+                    logger.error(f"Error looking up email for title {title}: {e}")
 
     send_email(TALENT_TEAM_EMAIL, subject, html_body, cc_emails=cc_emails)
 
@@ -564,13 +607,13 @@ def update_request(request_id, updates):
 
 
 def require_admin(f):
-    """Decorator to require admin authentication."""
+    """Decorator to require admin authentication (title-based)."""
     @wraps(f)
     def decorated_function(*args, **kwargs):
         user = session.get('user')
         if not user:
             return jsonify({'error': 'Authentication required'}), 401
-        if user.get('email', '').lower() not in [e.lower() for e in ADMIN_USERS]:
+        if not is_admin_user(user.get('email', '').lower()):
             return jsonify({'error': 'Admin access required'}), 403
         return f(*args, **kwargs)
     return decorated_function
@@ -890,15 +933,17 @@ def auth_callback():
         user_info = token.get('userinfo')
 
         if user_info:
+            email = user_info.get('email', '').lower()
+            job_title = lookup_job_title(email)
             session['user'] = {
-                'email': user_info.get('email'),
+                'email': email,
                 'name': user_info.get('name'),
-                'picture': user_info.get('picture')
+                'picture': user_info.get('picture'),
+                'job_title': job_title,
             }
 
         # Redirect admins to admin view, everyone else to form
-        email = user_info.get('email', '').lower() if user_info else ''
-        if email in [e.lower() for e in ADMIN_USERS]:
+        if is_admin_user(email):
             return redirect('/?admin=true')
         return redirect('/')
     except Exception as e:
@@ -919,11 +964,15 @@ def auth_status():
     user = session.get('user')
     if user:
         email = user.get('email', '').lower()
-        is_admin = email in [e.lower() for e in ADMIN_USERS]
-        permissions = get_user_permissions(email) if is_admin else None
+        # Refresh job title if not in session (handles cached sessions)
+        if not user.get('job_title'):
+            user['job_title'] = lookup_job_title(email)
+            session['user'] = user
+        admin = is_admin_user(email)
+        permissions = get_user_permissions(email) if admin else None
         return jsonify({
             'authenticated': True,
-            'is_admin': is_admin,
+            'is_admin': admin,
             'user': user,
             'permissions': permissions,
             'ceo_finance_required_types': CEO_FINANCE_REQUIRED_TYPES,
