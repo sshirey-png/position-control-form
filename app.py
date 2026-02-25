@@ -94,7 +94,7 @@ TITLE_ROLES = {
         'can_edit_final': False,
         'can_create_position': False,
     },
-    'Talent Ops Manager': {
+    'Talent Operations Manager': {
         'role': 'viewer',
         'can_approve': [],
         'can_edit_final': False,
