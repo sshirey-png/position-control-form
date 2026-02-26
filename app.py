@@ -106,6 +106,18 @@ TITLE_ROLES = {
         'can_edit_final': False,
         'can_create_position': False,
     },
+    'School Director': {
+        'role': 'viewer',
+        'can_approve': [],
+        'can_edit_final': False,
+        'can_create_position': False,
+    },
+    'Manager - Benefits': {
+        'role': 'viewer',
+        'can_approve': [],
+        'can_edit_final': False,
+        'can_create_position': False,
+    },
 }
 
 
