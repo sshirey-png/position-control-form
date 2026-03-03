@@ -387,6 +387,21 @@ def send_new_request_alert(req):
     """
     cc_emails = [HR_EMAIL]
 
+    # Always CC the CPO
+    try:
+        q = f"""
+        SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+        WHERE Job_Title = 'Chief People Officer' AND Employment_Status IN ('Active', 'Leave of absence')
+        LIMIT 1
+        """
+        rows = list(bq_client.query(q).result())
+        if rows and rows[0].Email_Address:
+            cpo_email = rows[0].Email_Address.lower()
+            if cpo_email not in cc_emails and cpo_email != TALENT_TEAM_EMAIL:
+                cc_emails.append(cpo_email)
+    except Exception as e:
+        logger.error(f"Error looking up CPO email: {e}")
+
     # If request type requires CEO/Finance approval, also notify those approvers
     # Look up emails for title-based roles that have CEO/Finance approval rights
     if req.get('request_type') in CEO_FINANCE_REQUIRED_TYPES:
@@ -411,6 +426,103 @@ def send_new_request_alert(req):
                     logger.error(f"Error looking up email for title {title}: {e}")
 
     send_email(TALENT_TEAM_EMAIL, subject, html_body, cc_emails=cc_emails)
+
+
+def send_status_update(req, new_status):
+    """Send status update email to requestor when final_status changes."""
+    is_open_position = req.get('request_type') == 'Open Position'
+
+    # Status-specific messaging
+    if is_open_position:
+        if new_status == 'Approved':
+            status_label = 'Vacancy Confirmed'
+            status_color = '#22c55e'
+            message = f"The vacancy for <strong>{req.get('position_title', 'this position')}</strong> has been confirmed and will be posted."
+        elif new_status == 'Denied':
+            status_label = 'Vacancy Not Confirmed'
+            status_color = '#ef4444'
+            message = "After review, this vacancy has not been confirmed at this time."
+        else:
+            status_label = new_status
+            status_color = '#e47727'
+            message = f"Your submission status has been updated to: {new_status}"
+    else:
+        if new_status == 'Approved':
+            status_label = 'Approved'
+            status_color = '#22c55e'
+            message = f"Your position control request for <strong>{req.get('position_title', 'this position')}</strong> has been approved."
+        elif new_status == 'Denied':
+            status_label = 'Denied'
+            status_color = '#ef4444'
+            message = f"After careful consideration, your request for <strong>{req.get('position_title', 'this position')}</strong> has not been approved at this time."
+        elif new_status == 'Withdrawn':
+            status_label = 'Withdrawn'
+            status_color = '#ef4444'
+            message = "Your position control request has been withdrawn."
+        else:
+            status_label = new_status
+            status_color = '#e47727'
+            message = f"Your request status has been updated to: {new_status}"
+
+    subject = f"Position Control Request Update - {status_label}"
+    html_body = f"""
+    <div style="font-family: 'Open Sans', Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <div style="background-color: #002f60; padding: 20px; text-align: center;">
+            <h1 style="color: white; margin: 0;">Position Control Request Update</h1>
+        </div>
+        <div style="padding: 30px; background-color: #f8f9fa;">
+            <p>Hi {req.get('requestor_name', '')},</p>
+
+            <div style="background-color: white; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+                <p style="margin: 0 0 10px 0;">Your {req.get('request_type', '')} request</p>
+                <p style="font-size: 1.5em; color: {status_color}; margin: 0; font-weight: bold;">{status_label}</p>
+            </div>
+
+            <p>{message}</p>
+
+            <div style="background-color: white; border-radius: 8px; padding: 15px; margin: 20px 0;">
+                <p style="margin: 5px 0;"><strong>Request ID:</strong> {req.get('request_id', '')}</p>
+                <p style="margin: 5px 0;"><strong>Type:</strong> {req.get('request_type', '')}</p>
+                <p style="margin: 5px 0;"><strong>Position:</strong> {req.get('position_title', '')}</p>
+                <p style="margin: 5px 0;"><strong>School:</strong> {req.get('school', '')}</p>
+            </div>
+
+            <p style="color: #666; font-size: 0.9em; margin-top: 30px;">Questions? Contact talent@firstlineschools.org</p>
+        </div>
+        <div style="background-color: #002f60; padding: 15px; text-align: center;">
+            <p style="color: white; margin: 0; font-size: 0.9em;">FirstLine Schools - Education For Life</p>
+        </div>
+    </div>
+    """
+
+    # CC list: talent, hr, payroll, benefits, ExDir of Teach and Learn, CPO
+    cc_emails = [
+        TALENT_TEAM_EMAIL,
+        HR_EMAIL,
+        'payroll@firstlineschools.org',
+        'benefits@firstlineschools.org',
+    ]
+
+    # Look up ExDir of Teach and Learn by title
+    for title in ['ExDir of Teach and Learn', 'Chief People Officer']:
+        try:
+            q = f"""
+            SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+            WHERE Job_Title = @title AND Employment_Status IN ('Active', 'Leave of absence')
+            LIMIT 1
+            """
+            jc = bigquery.QueryJobConfig(
+                query_parameters=[bigquery.ScalarQueryParameter("title", "STRING", title)]
+            )
+            rows = list(bq_client.query(q, job_config=jc).result())
+            if rows and rows[0].Email_Address:
+                email = rows[0].Email_Address.lower()
+                if email not in cc_emails:
+                    cc_emails.append(email)
+        except Exception as e:
+            logger.error(f"Error looking up {title} email: {e}")
+
+    send_email(req.get('requestor_email', ''), subject, html_body, cc_emails=cc_emails)
 
 
 # ============ BigQuery Functions ============
@@ -1016,6 +1128,11 @@ def update_request_status(request_id):
         if not perms:
             return jsonify({'error': 'No permissions configured for this user'}), 403
 
+        # Get current request state (for detecting status changes)
+        current_req = get_request_by_id(request_id)
+        if not current_req:
+            return jsonify({'error': 'Request not found'}), 404
+
         updates = {}
 
         # Handle approval fields — only allow fields the user has permission for
@@ -1064,6 +1181,16 @@ def update_request_status(request_id):
         updates['updated_by'] = user.get('email', 'Unknown')
 
         if update_request(request_id, updates):
+            # Send status update email when final_status changes
+            new_status = updates.get('final_status')
+            old_status = current_req.get('final_status')
+            if new_status and new_status != old_status and new_status != 'Pending':
+                # Merge updates into current request for email content
+                updated_req = {**current_req, **updates}
+                try:
+                    send_status_update(updated_req, new_status)
+                except Exception as e:
+                    logger.error(f"Failed to send status update email: {e}")
             return jsonify({'success': True})
         else:
             return jsonify({'error': 'Request not found'}), 404
