@@ -484,6 +484,8 @@ def send_status_update(req, new_status):
                 <p style="margin: 5px 0;"><strong>Request ID:</strong> {req.get('request_id', '')}</p>
                 <p style="margin: 5px 0;"><strong>Type:</strong> {req.get('request_type', '')}</p>
                 <p style="margin: 5px 0;"><strong>Position:</strong> {req.get('position_title', '')}</p>
+                <p style="margin: 5px 0;"><strong>Subject:</strong> {req.get('subject', '') or 'N/A'}</p>
+                <p style="margin: 5px 0;"><strong>Grade Level:</strong> {req.get('grade_level', '') or 'N/A'}</p>
                 <p style="margin: 5px 0;"><strong>School:</strong> {req.get('school', '')}</p>
             </div>
 
