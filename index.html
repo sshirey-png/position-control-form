@@ -117,6 +117,13 @@
                     </a>
                     <div id="userInfo" class="hidden items-center gap-3">
                         <span id="userName" class="text-sm text-white"></span>
+                        <button id="adminToggleBtn" onclick="toggleAdminView()" class="hidden inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-fls-orange hover:bg-orange-600 rounded-lg transition-colors">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                            </svg>
+                            <span id="adminToggleText">Admin Portal</span>
+                        </button>
                         <a href="/logout" class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium text-white hover:bg-fls-blue rounded-lg transition-colors">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
@@ -538,9 +545,6 @@
                     <h1 class="text-3xl font-bold text-fls-navy">Position Control Admin</h1>
                     <p class="text-gray-600">Manage and track all staffing requests</p>
                 </div>
-                <button onclick="showStaffView()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    View Staff Page
-                </button>
             </div>
 
             <!-- Stats Cards -->
@@ -876,7 +880,7 @@
                     <div id="staffingBoardSection" class="hidden">
                         <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
                             <p class="text-sm text-blue-800 mb-3" id="staffingBoardDesc">This request is approved. Update the Staffing Board:</p>
-                            <a id="staffingBoardLink" href="https://position-control-daem7b6ydq-uc.a.run.app" target="_blank"
+                            <a id="staffingBoardLink" href="https://position-control-965913991496.us-central1.run.app" target="_blank"
                                 class="inline-flex items-center gap-2 bg-fls-navy hover:bg-blue-900 text-white px-4 py-2 rounded-lg font-medium text-sm transition">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
@@ -1085,6 +1089,10 @@
                     isAdmin = data.is_admin;
                     userPermissions = data.permissions;
                     ceoFinanceRequiredTypes = data.ceo_finance_required_types || [];
+                    if (isAdmin) {
+                        document.getElementById('adminToggleBtn').classList.remove('hidden');
+                        document.getElementById('adminToggleBtn').classList.add('inline-flex');
+                    }
                     positionActionTypes = data.position_action_types || {};
 
                     // Auto-fill requestor info from Google session
@@ -1115,6 +1123,15 @@
         }
 
         // View switching
+        function toggleAdminView() {
+            const adminView = document.getElementById('adminView');
+            if (adminView.classList.contains('hidden')) {
+                showAdminView();
+            } else {
+                showStaffView();
+            }
+        }
+
         function showAdminView() {
             if (!isAdmin) {
                 alert('Admin access required');
@@ -1122,12 +1139,14 @@
             }
             document.getElementById('staffView').classList.add('hidden');
             document.getElementById('adminView').classList.remove('hidden');
+            document.getElementById('adminToggleText').textContent = 'Staff Form';
             loadAdminData();
         }
 
         function showStaffView() {
             document.getElementById('adminView').classList.add('hidden');
             document.getElementById('staffView').classList.remove('hidden');
+            document.getElementById('adminToggleText').textContent = 'Admin Portal';
         }
 
         // Auto-fill staff info from previous submissions

@@ -118,6 +118,12 @@ TITLE_ROLES = {
         'can_edit_final': False,
         'can_create_position': False,
     },
+    'Chief Academic Officer': {
+        'role': 'viewer',
+        'can_approve': [],
+        'can_edit_final': False,
+        'can_create_position': False,
+    },
 }
 
 
