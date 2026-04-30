@@ -150,6 +150,45 @@ def lookup_job_title(email):
     return ''
 
 
+def requestor_reports_up_to(start_email, target_email, max_depth=10):
+    """Return True if start_email is target_email or transitively reports up to target_email."""
+    if not start_email or not target_email:
+        return False
+    start_email = start_email.lower()
+    target_email = target_email.lower()
+    try:
+        q = f"""
+        WITH RECURSIVE chain AS (
+          SELECT LOWER(Email_Address) AS email,
+                 Supervisor_Name__Unsecured_ AS sup_name,
+                 1 AS depth
+          FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+          WHERE LOWER(Email_Address) = @start_email
+            AND Employment_Status IN ('Active', 'Leave of absence')
+          UNION ALL
+          SELECT LOWER(s.Email_Address),
+                 s.Supervisor_Name__Unsecured_,
+                 c.depth + 1
+          FROM chain c
+          JOIN `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function` s
+            ON LOWER(s.Employee_Name__Last_Suffix__First_MI_) = LOWER(c.sup_name)
+            AND s.Employment_Status IN ('Active', 'Leave of absence')
+          WHERE c.depth < @max_depth
+        )
+        SELECT 1 AS hit FROM chain WHERE email = @target_email LIMIT 1
+        """
+        jc = bigquery.QueryJobConfig(query_parameters=[
+            bigquery.ScalarQueryParameter("start_email", "STRING", start_email),
+            bigquery.ScalarQueryParameter("target_email", "STRING", target_email),
+            bigquery.ScalarQueryParameter("max_depth", "INT64", max_depth),
+        ])
+        rows = list(bq_client.query(q, job_config=jc).result())
+        return len(rows) > 0
+    except Exception as e:
+        logger.error(f"Error walking supervisor chain {start_email} -> {target_email}: {e}")
+        return False
+
+
 def get_user_permissions(email):
     """Get the permissions for a user based on their job title from BigQuery."""
     job_title = session.get('user', {}).get('job_title', '')
@@ -503,7 +542,7 @@ def send_status_update(req, new_status):
     </div>
     """
 
-    # CC list: talent, hr, payroll, benefits, ExDir of Teach and Learn, CPO
+    # CC list: talent, hr, payroll, benefits, CPO (always), ExDir T&L (only if requestor reports up to them)
     cc_emails = [
         TALENT_TEAM_EMAIL,
         HR_EMAIL,
@@ -511,24 +550,38 @@ def send_status_update(req, new_status):
         'benefits@firstlineschools.org',
     ]
 
-    # Look up ExDir of Teach and Learn by title
-    for title in ['ExDir of Teach and Learn', 'Chief People Officer']:
-        try:
-            q = f"""
-            SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
-            WHERE Job_Title = @title AND Employment_Status IN ('Active', 'Leave of absence')
-            LIMIT 1
-            """
-            jc = bigquery.QueryJobConfig(
-                query_parameters=[bigquery.ScalarQueryParameter("title", "STRING", title)]
-            )
-            rows = list(bq_client.query(q, job_config=jc).result())
-            if rows and rows[0].Email_Address:
-                email = rows[0].Email_Address.lower()
-                if email not in cc_emails:
-                    cc_emails.append(email)
-        except Exception as e:
-            logger.error(f"Error looking up {title} email: {e}")
+    requestor_email = (req.get('requestor_email') or '').lower()
+
+    # Always CC the CPO
+    try:
+        q = f"""
+        SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+        WHERE Job_Title = 'Chief People Officer' AND Employment_Status IN ('Active', 'Leave of absence')
+        LIMIT 1
+        """
+        rows = list(bq_client.query(q).result())
+        if rows and rows[0].Email_Address:
+            cpo_email = rows[0].Email_Address.lower()
+            if cpo_email not in cc_emails:
+                cc_emails.append(cpo_email)
+    except Exception as e:
+        logger.error(f"Error looking up CPO email: {e}")
+
+    # CC ExDir of Teach and Learn only if requestor reports up to them (or is them)
+    try:
+        q = f"""
+        SELECT Email_Address FROM `{PROJECT_ID}.{PC_DATASET_ID}.staff_master_list_with_function`
+        WHERE Job_Title = 'ExDir of Teach and Learn' AND Employment_Status IN ('Active', 'Leave of absence')
+        LIMIT 1
+        """
+        rows = list(bq_client.query(q).result())
+        if rows and rows[0].Email_Address:
+            exdir_email = rows[0].Email_Address.lower()
+            if exdir_email != requestor_email and exdir_email not in cc_emails:
+                if requestor_reports_up_to(requestor_email, exdir_email):
+                    cc_emails.append(exdir_email)
+    except Exception as e:
+        logger.error(f"Error checking ExDir T&L chain: {e}")
 
     send_email(req.get('requestor_email', ''), subject, html_body, cc_emails=cc_emails)
 
