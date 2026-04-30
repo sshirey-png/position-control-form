@@ -1184,6 +1184,26 @@ def update_request_status(request_id):
                     return jsonify({'error': 'Viewers cannot edit request details'}), 403
                 updates[field] = data[field]
 
+        # Auto-rollup final_status from approval fields. The user tipping the
+        # last approval may lack can_edit_final (e.g., Manager HR, Manager Finance),
+        # so without this the row stays Pending even with all approvers green.
+        # Skipped if caller explicitly set final_status, and only rolls Pending forward.
+        if 'final_status' not in updates and (current_req.get('final_status') or 'Pending') == 'Pending':
+            effective_type = updates.get('request_type', current_req.get('request_type'))
+            needs_ceo_finance = effective_type in CEO_FINANCE_REQUIRED_TYPES
+
+            def _eff(field):
+                return updates.get(field) or current_req.get(field) or 'Pending'
+
+            required = [_eff('talent_approval'), _eff('hr_approval')]
+            if needs_ceo_finance:
+                required += [_eff('ceo_approval'), _eff('finance_approval')]
+
+            if 'Denied' in required:
+                updates['final_status'] = 'Denied'
+            elif all(s == 'Approved' for s in required):
+                updates['final_status'] = 'Approved'
+
         # Always update audit fields
         updates['updated_at'] = datetime.now().isoformat()
         updates['updated_by'] = user.get('email', 'Unknown')
